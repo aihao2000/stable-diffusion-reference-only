@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../DeepLearningContent"
+		},
+		{
+			"path": "../../diffusers"
+		}
+	],
+	"settings": {}
+}

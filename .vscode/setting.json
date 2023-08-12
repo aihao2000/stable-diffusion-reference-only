@@ -1,0 +1,9 @@
+{
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "python.formatting.provider": "black",
+  "explorer.excludeGitIgnore": false,
+  "python.analysis.autoSearchPaths": true,
+  "python.analysis.exclude": ["**/datasets", "**/models"]
+}
