@@ -8,6 +8,12 @@
 		},
 		{
 			"path": "../../diffusers"
+		},
+		{
+			"path": "../../ComicGenerator"
+		},
+		{
+			"path": "../../../.cache/huggingface"
 		}
 	],
 	"settings": {}
