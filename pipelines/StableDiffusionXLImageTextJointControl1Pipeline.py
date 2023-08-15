@@ -41,7 +41,7 @@ from diffusers.pipelines.stable_diffusion_xl.watermark import (
     StableDiffusionXLWatermarker,
 )
 from PIL import Image
-from diffusers import StableDiffusionXLPipeline
+from diffusers import StableDiffusionXLPipeline,UNet2DConditionModel
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -79,7 +79,6 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
         guidance_rescale * noise_pred_rescaled + (1 - guidance_rescale) * noise_cfg
     )
     return noise_cfg
-
 
 class StableDiffusionXLImageTextJointControlPipeline_PooledOnly(
     DiffusionPipeline, FromSingleFileMixin, LoraLoaderMixin
