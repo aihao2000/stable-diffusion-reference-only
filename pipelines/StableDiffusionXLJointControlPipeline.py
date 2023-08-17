@@ -234,8 +234,8 @@ class StableDiffusionXLJointControlPipeline(
 
     def encode_prompt(
         self,
-        prompt: str,
-        prompt_2: Optional[str] = None,
+        text_prompt: str,
+        text_prompt_2: Optional[str] = None,
         image_prompt: Image = None,
         image_prompt_2: Image = None,
         device: Optional[torch.device] = None,
@@ -295,10 +295,10 @@ class StableDiffusionXLJointControlPipeline(
         if lora_scale is not None and isinstance(self, LoraLoaderMixin):
             self._lora_scale = lora_scale
 
-        if prompt is not None and isinstance(prompt, str):
+        if text_prompt is not None and isinstance(text_prompt, str):
             batch_size = 1
-        elif prompt is not None and isinstance(prompt, list):
-            batch_size = len(prompt)
+        elif text_prompt is not None and isinstance(text_prompt, list):
+            batch_size = len(text_prompt)
         else:
             batch_size = prompt_embeds.shape[0]
 
@@ -327,18 +327,18 @@ class StableDiffusionXLJointControlPipeline(
         )
 
         if prompt_embeds is None:
-            prompt_2 = prompt_2 or prompt
+            text_prompt_2 = text_prompt_2 or text_prompt
             # textual inversion: procecss multi-vector tokens if necessary
             prompt_embeds_list = []
-            prompts = [prompt, prompt_2]
-            for prompt, tokenizer, text_encoder in zip(
+            prompts = [text_prompt, text_prompt_2]
+            for text_prompt, tokenizer, text_encoder in zip(
                 prompts, tokenizers, text_encoders
             ):
                 if isinstance(self, TextualInversionLoaderMixin):
-                    prompt = self.maybe_convert_prompt(prompt, tokenizer)
+                    text_prompt = self.maybe_convert_prompt(text_prompt, tokenizer)
 
                 text_inputs = tokenizer(
-                    prompt,
+                    text_prompt,
                     padding="max_length",
                     max_length=tokenizer.model_max_length,
                     truncation=True,
@@ -347,7 +347,7 @@ class StableDiffusionXLJointControlPipeline(
 
                 text_input_ids = text_inputs.input_ids
                 untruncated_ids = tokenizer(
-                    prompt, padding="longest", return_tensors="pt"
+                    text_prompt, padding="longest", return_tensors="pt"
                 ).input_ids
 
                 if untruncated_ids.shape[-1] >= text_input_ids.shape[
@@ -420,17 +420,19 @@ class StableDiffusionXLJointControlPipeline(
             negative_prompt_2 = negative_prompt_2 or negative_prompt
 
             uncond_tokens: List[str]
-            if prompt is not None and type(prompt) is not type(negative_prompt):
+            if text_prompt is not None and type(text_prompt) is not type(
+                negative_prompt
+            ):
                 raise TypeError(
                     f"`negative_prompt` should be the same type to `prompt`, but got {type(negative_prompt)} !="
-                    f" {type(prompt)}."
+                    f" {type(text_prompt)}."
                 )
             elif isinstance(negative_prompt, str):
                 uncond_tokens = [negative_prompt, negative_prompt_2]
             elif batch_size != len(negative_prompt):
                 raise ValueError(
                     f"`negative_prompt`: {negative_prompt} has batch size {len(negative_prompt)}, but `prompt`:"
-                    f" {prompt} has batch size {batch_size}. Please make sure that passed `negative_prompt` matches"
+                    f" {text_prompt} has batch size {batch_size}. Please make sure that passed `negative_prompt` matches"
                     " the batch size of `prompt`."
                 )
             else:
@@ -686,9 +688,9 @@ class StableDiffusionXLJointControlPipeline(
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
+        text_prompt: Union[str, List[str]] = None,
         image_prompt: Image = None,
-        prompt_2: Optional[Union[str, List[str]]] = None,
+        text_prompt_2: Optional[Union[str, List[str]]] = None,
         image_prompt_2: Image = None,
         height: Optional[int] = None,
         width: Optional[int] = None,
@@ -830,8 +832,8 @@ class StableDiffusionXLJointControlPipeline(
 
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
-            prompt,
-            prompt_2,
+            text_prompt,
+            text_prompt_2,
             height,
             width,
             callback_steps,
@@ -844,10 +846,10 @@ class StableDiffusionXLJointControlPipeline(
         )
 
         # 2. Define call parameters
-        if prompt is not None and isinstance(prompt, str):
+        if text_prompt is not None and isinstance(text_prompt, str):
             batch_size = 1
-        elif prompt is not None and isinstance(prompt, list):
-            batch_size = len(prompt)
+        elif text_prompt is not None and isinstance(text_prompt, list):
+            batch_size = len(text_prompt)
         else:
             batch_size = prompt_embeds.shape[0]
 
@@ -870,9 +872,9 @@ class StableDiffusionXLJointControlPipeline(
             pooled_prompt_embeds,
             negative_pooled_prompt_embeds,
         ) = self.encode_prompt(
-            prompt=prompt,
+            text_prompt=text_prompt,
             image_prompt=image_prompt,
-            prompt_2=prompt_2,
+            text_prompt_2=text_prompt_2,
             image_prompt_2=image_prompt_2,
             device=device,
             num_images_per_prompt=num_images_per_prompt,
