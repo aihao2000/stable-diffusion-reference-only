@@ -327,31 +327,6 @@ class StableDiffusionXLJointControlPipeline(
         )
 
         if prompt_embeds is None:
-            if image_prompt is not None:
-                image_prompt_2 = image_prompt_2 or image_prompt
-
-                image_prompts = [image_prompt, image_prompt_2]
-
-                image_prompt_embeds_list = []
-                for image_prompt, image_clip_processor, image_encoder in zip(
-                    image_prompts, image_clip_processors, image_encoders
-                ):
-                    pixel_values = image_clip_processor(
-                        image_prompt,
-                        return_tensors="pt",
-                    ).pixel_values
-
-                    image_prompt_embeds = image_encoder(
-                        pixel_values.to(device),
-                    ).image_embeds
-
-                    pooled_prompt_embeds = image_prompt_embeds
-
-                    image_prompt_embeds_list.append(image_prompt_embeds)
-                image_prompt_embeds = torch.concat(image_prompt_embeds_list, dim=-1)
-
-            max_num_tokens = 0
-
             prompt_2 = prompt_2 or prompt
             # textual inversion: procecss multi-vector tokens if necessary
             prompt_embeds_list = []
@@ -385,7 +360,6 @@ class StableDiffusionXLJointControlPipeline(
                         "The following part of your input was truncated because CLIP can only handle sequences up to"
                         f" {tokenizer.model_max_length} tokens: {removed_text}"
                     )
-                max_num_tokens = max(max_num_tokens, untruncated_ids.shape[-1])
 
                 prompt_embeds = text_encoder(
                     text_input_ids.to(device),
@@ -398,15 +372,37 @@ class StableDiffusionXLJointControlPipeline(
                 prompt_embeds_list.append(prompt_embeds)
 
             prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
-
             if image_prompt is not None:
+                image_prompt_2 = image_prompt_2 or image_prompt
+
+                image_prompts = [image_prompt, image_prompt_2]
+
+                image_prompt_embeds_list = []
+                for image_prompt, image_clip_processor, image_encoder in zip(
+                    image_prompts, image_clip_processors, image_encoders
+                ):
+                    pixel_values = image_clip_processor(
+                        image_prompt,
+                        return_tensors="pt",
+                    ).pixel_values
+
+                    image_prompt_embeds = image_encoder(
+                        pixel_values.to(device),
+                    ).image_embeds
+
+                    pooled_prompt_embeds = image_prompt_embeds
+
+                    image_prompt_embeds_list.append(image_prompt_embeds)
+
+                image_prompt_embeds = torch.concat(image_prompt_embeds_list, dim=-1)
+                bs, image_embeds_dim = image_prompt_embeds.shape
+                image_prompt_embeds = image_prompt_embeds.reshape(
+                    (bs, 1, image_embeds_dim)
+                )
                 image_prompt_embeds = image_prompt_embeds.repeat(
-                    self.tokenizer.model_max_length - max_num_tokens, 1
+                    1, self.tokenizer.model_max_length, 1
                 )
-                image_prompt_embeds = image_prompt_embeds.unsqueeze(0)
-                prompt_embeds = torch.concat(
-                    [prompt_embeds[:, :max_num_tokens, :], image_prompt_embeds], dim=1
-                )
+                prompt_embeds = prompt_embeds + image_prompt_embeds
 
         # get unconditional embeddings for classifier free guidance
         zero_out_negative_prompt = (
