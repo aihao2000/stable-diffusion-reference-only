@@ -66,8 +66,10 @@ from transformers import (
 )
 import sys
 
-sys.path.append("/home/aihao/workspace/StableDiffusionImageTextJointControl/pipelines")
-from StableDiffusionXLJointControlPipeline import (
+sys.path.append(
+    "/home/aihao/workspace/StableDiffusionJointControl/src"
+)
+from stable_diffusion_joint_control.pipelines.stable_diffusion_xl_joint_control_pipeline import (
     StableDiffusionXLJointControlPipeline,
 )
 

@@ -1,4 +1,4 @@
-accelerate launch --mixed_precision=fp16 '/home/aihao/workspace/StableDiffusionImageTextJointControl/train/train_sdxl_jc_lora.py' \
+accelerate launch --mixed_precision=fp16 '/home/aihao/workspace/StableDiffusionJointControl/train/train_sdxl_jc_lora.py' \
     --pretrained_model_name_or_path='/home/aihao/workspace/DeepLearningContent/models/sdxl_jc/sdxl_jc-base-1.0' \
     --dataset_name='/home/aihao/workspace/DeepLearningContent/datasets/images' \
     --dataset_config_name='similar_pairs' \
