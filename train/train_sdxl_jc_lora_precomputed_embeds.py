@@ -70,7 +70,7 @@ sys.path.append("/home/aihao/workspace/StableDiffusionJointControl/src")
 from stable_diffusion_joint_control.pipelines.stable_diffusion_xl_joint_control_pipeline import (
     StableDiffusionXLJointControlPipeline,
 )
-
+from diffusers import StableDiffusionXLPipeline,StableDiffusionControlNetPipeline
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
 check_min_version("0.19.0.dev0")
 
@@ -527,152 +527,6 @@ def unet_attn_processors_state_dict(unet) -> Dict[str, torch.tensor]:
     return attn_processors_state_dict
 
 
-# def encode_prompt(
-#     text_encoder: CLIPTextModel,
-#     text_encoder_2: CLIPTextModelWithProjection,
-#     tokenizer: CLIPTokenizer,
-#     tokenizer_2: CLIPTokenizer,
-#     image_encoder: CLIPVisionModelWithProjection,
-#     image_encoder_2: CLIPVisionModelWithProjection,
-#     image_clip_processor: CLIPImageProcessor,
-#     image_clip_processor_2: CLIPImageProcessor,
-#     text_prompt: str,
-#     text_prompt_2: Optional[str] = None,
-#     image_prompt: Image = None,
-#     image_prompt_2: Image = None,
-#     prompt_embeds: Optional[torch.FloatTensor] = None,
-#     pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
-# ):
-#     device = text_encoder.device
-
-#     if text_prompt is not None and isinstance(text_prompt, str):
-#         batch_size = 1
-#     elif text_prompt is not None and isinstance(text_prompt, list):
-#         batch_size = len(text_prompt)
-#     else:
-#         batch_size = prompt_embeds.shape[0]
-
-#     # Define imaege processors and image encoders
-#     image_clip_processors = (
-#         [image_clip_processor, image_clip_processor_2]
-#         if image_clip_processor is not None
-#         else [image_clip_processor_2]
-#     )
-#     image_encoders = (
-#         [image_encoder, image_encoder_2]
-#         if image_encoder is not None
-#         else [image_encoder_2]
-#     )
-
-#     # Define tokenizers and text encoders
-#     tokenizers = [tokenizer, tokenizer_2] if tokenizer is not None else [tokenizer_2]
-#     text_encoders = (
-#         [text_encoder, text_encoder_2] if text_encoder is not None else [text_encoder_2]
-#     )
-
-#     if prompt_embeds is None:
-#         text_prompt_2 = text_prompt_2 or text_prompt
-#         # textual inversion: procecss multi-vector tokens if necessary
-#         prompt_embeds_list = []
-#         prompts = [text_prompt, text_prompt_2]
-#         for text_prompt, tokenizer, text_encoder in zip(
-#             prompts, tokenizers, text_encoders
-#         ):
-#             text_inputs = tokenizer(
-#                 text_prompt,
-#                 padding="max_length",
-#                 max_length=tokenizer.model_max_length,
-#                 truncation=True,
-#                 return_tensors="pt",
-#             )
-#             text_input_ids = text_inputs.input_ids
-#             prompt_embeds = text_encoder(
-#                 text_input_ids.to(device),
-#                 output_hidden_states=True,
-#             )
-#             if image_prompt is None:
-#                 pooled_prompt_embeds = prompt_embeds[0]
-#             prompt_embeds = prompt_embeds.hidden_states[-2]
-
-#             prompt_embeds_list.append(prompt_embeds)
-
-#         prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
-#         if image_prompt is not None:
-#             image_prompt_2 = image_prompt_2 or image_prompt
-
-#             image_prompts = [image_prompt, image_prompt_2]
-
-#             image_prompt_embeds_list = []
-#             for image_prompt, image_clip_processor, image_encoder in zip(
-#                 image_prompts, image_clip_processors, image_encoders
-#             ):
-#                 pixel_values = image_clip_processor(
-#                     image_prompt,
-#                     return_tensors="pt",
-#                 ).pixel_values
-
-#                 image_prompt_embeds = image_encoder(
-#                     pixel_values.to(device),
-#                 ).image_embeds
-
-#                 pooled_prompt_embeds = image_prompt_embeds
-
-#                 image_prompt_embeds_list.append(image_prompt_embeds)
-
-#             image_prompt_embeds = torch.concat(image_prompt_embeds_list, dim=-1)
-#             bs, image_embeds_dim = image_prompt_embeds.shape
-#             image_prompt_embeds = image_prompt_embeds.reshape((bs, 1, image_embeds_dim))
-#             image_prompt_embeds = image_prompt_embeds.repeat(
-#                 1, tokenizer.model_max_length, 1
-#             )
-#             prompt_embeds = prompt_embeds + image_prompt_embeds
-#     return (
-#         prompt_embeds,
-#         pooled_prompt_embeds,
-#     )
-
-
-# def tokenize_prompt(tokenizer, prompt):
-#     text_inputs = tokenizer(
-#         prompt,
-#         padding="max_length",
-#         max_length=tokenizer.model_max_length,
-#         truncation=True,
-#         return_tensors="pt",
-#     )
-#     text_input_ids = text_inputs.input_ids
-#     return text_input_ids
-
-
-# # Adapted from pipelines.StableDiffusionXLPipeline.encode_prompt
-# def encode_prompt(text_encoders, tokenizers, prompt, text_input_ids_list=None):
-#     prompt_embeds_list = []
-
-#     for i, text_encoder in enumerate(text_encoders):
-#         if tokenizers is not None:
-#             tokenizer = tokenizers[i]
-#             text_input_ids = tokenize_prompt(tokenizer, prompt)
-#         else:
-#             assert text_input_ids_list is not None
-#             text_input_ids = text_input_ids_list[i]
-
-#         prompt_embeds = text_encoder(
-#             text_input_ids.to(text_encoder.device),
-#             output_hidden_states=True,
-#         )
-
-#         # We are only ALWAYS interested in the pooled output of the final text encoder
-#         pooled_prompt_embeds = prompt_embeds[0]
-#         prompt_embeds = prompt_embeds.hidden_states[-2]
-#         bs_embed, seq_len, _ = prompt_embeds.shape
-#         prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
-#         prompt_embeds_list.append(prompt_embeds)
-
-#     prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
-#     pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
-#     return prompt_embeds, pooled_prompt_embeds
-
-
 def main(args):
     logging_dir = Path(args.output_dir, args.logging_dir)
 
@@ -726,49 +580,6 @@ def main(args):
                 token=args.hub_token,
             ).repo_id
 
-    # pipe = StableDiffusionXLJointControlPipeline.from_pretrained(
-    #     args.pretrained_model_name_or_path,
-    # )
-    # # Load the tokenizers
-    # tokenizer_one = pipe.tokenizer
-    # tokenizer_two = pipe.tokenizer_2
-
-    # image_clip_processor_one = pipe.image_clip_processor
-    # image_clip_processor_two = pipe.image_clip_processor_2
-    # image_encoder_one = pipe.image_encoder
-    # image_encoder_two = pipe.image_encoder_2
-
-    # # Load scheduler and models
-    # noise_scheduler = pipe.scheduler
-    # text_encoder_one = pipe.text_encoder
-    # text_encoder_two = pipe.text_encoder_2
-
-    # tokenizer_one = CLIPTokenizer.from_pretrained(
-    #     args.pretrained_model_name_or_path, subfolder="tokenizer"
-    # )
-    # tokenizer_two = CLIPTokenizer.from_pretrained(
-    #     args.pretrained_model_name_or_path, subfolder="tokenizer_2"
-    # )
-    # text_encoder_one = CLIPTextModel.from_pretrained(
-    #     args.pretrained_model_name_or_path, subfolder="text_encoder"
-    # )
-    # text_encoder_two = CLIPTextModelWithProjection.from_pretrained(
-    #     args.pretrained_model_name_or_path, subfolder="text_encoder_2"
-    # )
-
-    # image_clip_processor_one = CLIPImageProcessor.from_pretrained(
-    #     args.pretrained_model_name_or_path, subfolder="image_clip_processor"
-    # )
-    # image_clip_processor_two = CLIPImageProcessor.from_pretrained(
-    #     args.pretrained_model_name_or_path, subfolder="image_clip_processor_2"
-    # )
-    # image_encoder_one = CLIPVisionModelWithProjection.from_pretrained(
-    #     args.pretrained_model_name_or_path, subfolder="image_encoder"
-    # )
-    # image_encoder_two = CLIPVisionModelWithProjection.from_pretrained(
-    #     args.pretrained_model_name_or_path, subfolder="image_encoder_2"
-    # )
-
     noise_scheduler = DDPMScheduler.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="scheduler"
     )
@@ -782,30 +593,17 @@ def main(args):
         args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision
     )
 
-    # We only train the additional adapter LoRA layers
-    # text_encoder_one.requires_grad_(False)
-    # text_encoder_two.requires_grad_(False)
-    # image_encoder_one.requires_grad_(False)
-    # image_encoder_two.requires_grad_(False)
     vae.requires_grad_(False)
     unet.requires_grad_(False)
 
-    # For mixed precision training we cast all non-trainable weigths (vae, non-lora text_encoder and non-lora unet) to half-precision
-    # as these weights are only used for inference, keeping weights in full precision is not required.
     weight_dtype = torch.float32
     if accelerator.mixed_precision == "fp16":
         weight_dtype = torch.float16
     elif accelerator.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
 
-    # Move unet, vae and text_encoder to device and cast to weight_dtype
-    # The VAE is in float32 to avoid NaN losses.
     unet.to(accelerator.device, dtype=weight_dtype)
     vae.to(accelerator.device, dtype=weight_dtype)
-    # text_encoder_one.to(accelerator.device, dtype=weight_dtype)
-    # text_encoder_two.to(accelerator.device, dtype=weight_dtype)
-    # image_encoder_one.to(accelerator.device, dtype=weight_dtype)
-    # image_encoder_two.to(accelerator.device, dtype=weight_dtype)
 
     if args.enable_xformers_memory_efficient_attention:
         if is_xformers_available():
@@ -822,8 +620,6 @@ def main(args):
                 "xformers is not available. Make sure it is installed correctly"
             )
 
-    # now we will add new LoRA weights to the attention layers
-    # Set correct lora layers
     unet_lora_attn_procs = {}
     unet_lora_parameters = []
     for name, attn_processor in unet.attn_processors.items():
@@ -1023,63 +819,6 @@ def main(args):
         # See more about loading custom images at
         # https://huggingface.co/docs/datasets/v2.4.0/en/image_load#imagefolder
 
-    # # Preprocessing the datasets.
-    # # We need to tokenize inputs and targets.
-    # column_names = dataset["train"].column_names
-
-    # # 6. Get the column names for input/target.
-    # dataset_columns = DATASET_NAME_MAPPING.get(args.dataset_name, None)
-    # if args.image_column is None:
-    #     image_column = (
-    #         dataset_columns[0] if dataset_columns is not None else column_names[0]
-    #     )
-    # else:
-    #     image_column = args.image_column
-    #     if image_column not in column_names:
-    #         raise ValueError(
-    #             f"--image_column' value '{args.image_column}' needs to be one of: {', '.join(column_names)}"
-    #         )
-    # if args.prompt_column is None:
-    #     prompt_column = (
-    #         dataset_columns[1] if dataset_columns is not None else column_names[1]
-    #     )
-    # else:
-    #     prompt_column = args.prompt_column
-    #     if prompt_column not in column_names:
-    #         raise ValueError(
-    #             f"--prompt_column' value '{args.prompt_column}' needs to be one of: {', '.join(column_names)}"
-    #         )
-
-    # if args.image_prompt_column is None:
-    #     image_prompt_column = (
-    #         dataset_columns[2] if dataset_columns is not None else column_names[12]
-    #     )
-    # else:
-    #     image_prompt_column = args.image_prompt_column
-    #     if image_prompt_column not in column_names:
-    #         raise ValueError(
-    #             f"--image_prompt_column' value '{args.image_prompt_column}' needs to be one of: {', '.join(column_names)}"
-    #         )
-
-    # # Preprocessing the datasets.
-    # # We need to tokenize input captions and transform the images.
-    # def tokenize_captions(examples, is_train=True):
-    #     captions = []
-    #     for caption in examples[caption_column]:
-    #         if isinstance(caption, str):
-    #             captions.append(caption)
-    #         elif isinstance(caption, (list, np.ndarray)):
-    #             # take a random caption if there are multiple
-    #             captions.append(random.choice(caption) if is_train else caption[0])
-    #         else:
-    #             raise ValueError(
-    #                 f"Caption column `{caption_column}` should contain either strings or lists of strings."
-    #             )
-    #     tokens_one = tokenize_prompt(tokenizer_one, captions)
-    #     tokens_two = tokenize_prompt(tokenizer_two, captions)
-    #     return tokens_one, tokens_two
-
-    # Preprocessing the datasets.
     train_resize = transforms.Resize(
         args.resolution, interpolation=transforms.InterpolationMode.BILINEAR
     )
@@ -1470,7 +1209,7 @@ def main(args):
                             f" {args.validation_prompt}."
                         )
                         pipeline = (
-                            stable_diffusion_xl_joint_control_pipeline.from_pretrained(
+                            StableDiffusionXLJointControlPipeline.from_pretrained(
                                 args.pretrained_model_name_or_path,
                                 vae=vae,
                                 unet=accelerator.unwrap_model(unet),
@@ -1556,7 +1295,7 @@ def main(args):
             text_encoder_lora_layers = None
             text_encoder_2_lora_layers = None
 
-        stable_diffusion_xl_joint_control_pipeline.save_lora_weights(
+        StableDiffusionXLJointControlPipeline.save_lora_weights(
             save_directory=args.output_dir,
             unet_lora_layers=unet_lora_layers,
             text_encoder_lora_layers=text_encoder_lora_layers,
@@ -1571,7 +1310,7 @@ def main(args):
         #     revision=args.revision,
         #     torch_dtype=weight_dtype,
         # )
-        pipeline = stable_diffusion_xl_joint_control_pipeline.from_pretrained(
+        pipeline = StableDiffusionXLJointControlPipeline.from_pretrained(
             args.pretrained_model_name_or_path,
             # vae=vae,
             revision=args.revision,

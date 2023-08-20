@@ -37,7 +37,7 @@ from ..pipeline_utils import DiffusionPipeline
 from . import StableDiffusionPipelineOutput
 from .watermark import StableDiffusionXLWatermarker
 
-
+from diffusers import StableDiffusionControlNetImg2ImgPipeline
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 EXAMPLE_DOC_STRING = """
