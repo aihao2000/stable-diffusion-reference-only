@@ -57,6 +57,7 @@ from stable_diffusion_reference_only.pipelines.stable_diffusion_reference_only_p
 from stable_diffusion_reference_only.models.dobule_condition_unet import (
     UNet2DDobuleConditionModel,
 )
+import cv2
 
 if is_wandb_available():
     import wandb
@@ -132,8 +133,21 @@ def log_validation(
     for validation_prompt, validation_blueprint in zip(
         validation_prompts, validation_blueprints
     ):
-        validation_blueprint = Image.open(validation_blueprint).convert("RGB")
-        vaildation_prompt = Image.open(vaildation_prompt).convert("RGB")
+        validation_blueprint = cv2.imread(validation_blueprint, cv2.IMREAD_GRAYSCALE)
+        validation_blueprint = cv2.adaptiveThreshold(
+            validation_blueprint,
+            255,
+            cv2.ADAPTIVE_THRESH_MEAN_C,
+            cv2.THRESH_BINARY,
+            blockSize=5,
+            C=7,
+        )
+        validation_blueprint = (
+            Image.fromarray(validation_blueprint).convert("RGB").resize((1024, 1024))
+        )
+        validation_prompt = (
+            Image.open(validation_prompt).convert("RGB").resize((1024, 1024))
+        )
         images = []
 
         for _ in range(args.num_validation_images):
@@ -183,13 +197,14 @@ def log_validation(
                 validation_blueprint = log["validation_blueprint"]
 
                 formatted_images.append(
-                    wandb.Image(
-                        validation_blueprint, caption="StableDiffusionReferenceOnly"
-                    )
+                    wandb.Image(validation_prompt, caption="prompt image")
+                )
+                formatted_images.append(
+                    wandb.Image(validation_blueprint, caption="blueprint image")
                 )
 
                 for image in images:
-                    image = wandb.Image(image, caption=validation_prompt)
+                    image = wandb.Image(image, caption="result")
                     formatted_images.append(image)
 
             tracker.log({"validation": formatted_images})
@@ -311,7 +326,7 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--checkpoints_total_limit",
         type=int,
-        default=50,
+        default=None,
         help=("Max number of checkpoints to store."),
     )
     parser.add_argument(
@@ -800,7 +815,6 @@ def main(args):
 
     clip_image_processor = CLIPImageProcessor.from_pretrained(
         args.pretrained_model_name_or_path,
-        args.revision,
         subfolder="clip_image_processor",
     )
 
