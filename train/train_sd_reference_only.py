@@ -20,7 +20,7 @@ import os
 import random
 import shutil
 from pathlib import Path
-
+import itertools
 import accelerate
 import numpy as np
 import torch
@@ -92,15 +92,19 @@ def log_validation(
     logger.info("Running validation... ")
 
     unet = accelerator.unwrap_model(unet)
+    if args.train_image_encoder:
+        image_encoder = accelerator.unwrap_model(image_encoder)
 
-    pipeline = StableDiffusionReferenceOnlyPipeline.from_pretrained(
-        args.pretrained_model_name_or_path,
-        vae=vae,
-        image_encoder=image_encoder,
-        clip_image_processor=clip_image_processor,
-        unet=unet,
-        revision=args.revision,
-        torch_dtype=weight_dtype,
+    pipeline: StableDiffusionReferenceOnlyPipeline = (
+        StableDiffusionReferenceOnlyPipeline.from_pretrained(
+            args.pretrained_model_name_or_path,
+            vae=vae,
+            image_encoder=image_encoder,
+            clip_image_processor=clip_image_processor,
+            unet=unet,
+            revision=args.revision,
+            torch_dtype=weight_dtype,
+        )
     )
     pipeline.scheduler = UniPCMultistepScheduler.from_config(pipeline.scheduler.config)
     pipeline = pipeline.to(accelerator.device)
@@ -157,6 +161,7 @@ def log_validation(
                     blueprint=validation_blueprint,
                     num_inference_steps=20,
                     generator=generator,
+                    train_image_encoder=args.train_image_encoder,
                 ).images[0]
 
             images.append(image)
@@ -297,6 +302,11 @@ def parse_args(input_args=None):
             "The resolution for input images, all the images in the train/validation dataset will be resized to this"
             " resolution"
         ),
+    )
+    parser.add_argument(
+        "--train_image_encoder",
+        action="store_true",
+        help="Whether to train the image encoder. If set, the image encoder should be float32 precision.",
     )
     parser.add_argument(
         "--train_batch_size",
@@ -869,7 +879,10 @@ def main(args):
 
     vae.requires_grad_(False)
     unet.requires_grad_(True)
-    image_encoder.requires_grad_(False)
+    if args.train_image_encoder:
+        image_encoder.requires_grad_(True)
+    else:
+        image_encoder.requires_grad_(False)
 
     if args.enable_xformers_memory_efficient_attention:
         if is_xformers_available():
@@ -922,7 +935,9 @@ def main(args):
         optimizer_class = torch.optim.AdamW
 
     optimizer = optimizer_class(
-        unet.parameters(),
+        itertools.chain(unet.parameters(), image_encoder.parameters())
+        if args.train_image_encoder
+        else unet.parameters(),
         lr=args.learning_rate,
         betas=(args.adam_beta1, args.adam_beta2),
         weight_decay=args.adam_weight_decay,
@@ -958,9 +973,20 @@ def main(args):
     )
 
     # Prepare everything with our `accelerator`.
-    unet, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
-        unet, optimizer, train_dataloader, lr_scheduler
-    )
+    if args.train_image_encoder:
+        (
+            unet,
+            image_encoder,
+            optimizer,
+            train_dataloader,
+            lr_scheduler,
+        ) = accelerator.prepare(
+            unet, image_encoder, optimizer, train_dataloader, lr_scheduler
+        )
+    else:
+        unet, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+            unet, optimizer, train_dataloader, lr_scheduler
+        )
 
     # For mixed precision training we cast the text_encoder and vae weights to half-precision
     # as these models are only used for inference, keeping weights in full precision is not required.
@@ -972,7 +998,8 @@ def main(args):
 
     # Move vae, unet and text_encoder to device and cast to weight_dtype
     vae.to(accelerator.device, dtype=weight_dtype)
-    image_encoder.to(accelerator.device, dtype=weight_dtype)
+    if not args.train_image_encoder:
+        image_encoder.to(accelerator.device, dtype=weight_dtype)
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(
@@ -1076,9 +1103,14 @@ def main(args):
                 noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
                 # Get the text embedding for conditioning
-                encoder_hidden_states = image_encoder(
-                    batch["prompt_pixel_values"], output_hidden_states=True
-                ).hidden_states[-2]
+                if args.train_image_encoder:
+                    encoder_hidden_states = image_encoder(
+                        batch["prompt_pixel_values"], output_hidden_states=True
+                    ).hidden_states[-2]
+                else:
+                    encoder_hidden_states = image_encoder(
+                        batch["prompt_pixel_values"], output_hidden_states=True
+                    ).last_hidden_state
                 blueprint = batch["blueprint_pixel_values"].to(dtype=weight_dtype)
 
                 # Predict the noise residual
@@ -1102,7 +1134,11 @@ def main(args):
 
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
-                    params_to_clip = unet.parameters()
+                    params_to_clip = (
+                        itertools.chain(unet.parameters(), image_encoder.parameters())
+                        if args.train_image_encoder
+                        else unet.parameters()
+                    )
                     accelerator.clip_grad_norm_(params_to_clip, args.max_grad_norm)
                 optimizer.step()
                 lr_scheduler.step()

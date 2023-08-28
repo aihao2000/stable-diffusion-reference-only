@@ -35,34 +35,6 @@ from ..models.dobule_condition_unet import UNet2DDobuleConditionModel
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
-EXAMPLE_DOC_STRING = """
-    Examples:
-        ```py
-        >>> import requests
-        >>> import torch
-        >>> from PIL import Image
-        >>> from io import BytesIO
-
-        >>> from diffusers import StableDiffusionImg2ImgPipeline
-
-        >>> device = "cuda"
-        >>> model_id_or_path = "runwayml/stable-diffusion-v1-5"
-        >>> pipe = StableDiffusionImg2ImgPipeline.from_pretrained(model_id_or_path, torch_dtype=torch.float16)
-        >>> pipe = pipe.to(device)
-
-        >>> url = "https://raw.githubusercontent.com/CompVis/stable-diffusion/main/assets/stable-samples/img2img/sketch-mountains-input.jpg"
-
-        >>> response = requests.get(url)
-        >>> init_image = Image.open(BytesIO(response.content)).convert("RGB")
-        >>> init_image = init_image.resize((768, 512))
-
-        >>> prompt = "A fantasy landscape, trending on artstation"
-
-        >>> images = pipe(prompt=prompt, image=init_image, strength=0.75, guidance_scale=7.5).images
-        >>> images[0].save("fantasy_landscape.png")
-        ```
-"""
-
 
 def preprocess(image):
     warnings.warn(
@@ -103,9 +75,10 @@ class StableDiffusionReferenceOnlyPipeline(
         clip_image_processor: CLIPImageProcessor,
         unet: UNet2DDobuleConditionModel,
         scheduler: KarrasDiffusionSchedulers,
+        train_image_encoder=False,
     ):
+        """ """
         super().__init__()
-
         if (
             hasattr(scheduler.config, "steps_offset")
             and scheduler.config.steps_offset != 1
@@ -186,6 +159,7 @@ class StableDiffusionReferenceOnlyPipeline(
             do_convert_rgb=True,
             do_normalize=False,
         )
+        self.train_image_encoder = train_image_encoder
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.enable_model_cpu_offload
     def enable_model_cpu_offload(self, gpu_id=0):
@@ -230,6 +204,7 @@ class StableDiffusionReferenceOnlyPipeline(
         num_images_per_prompt,
         prompt_embeds: Optional[torch.FloatTensor] = None,
         lora_scale: Optional[float] = None,
+        train_image_encoder=False,
     ):
         # set lora scale so that monkey patched LoRA
         # function of text encoder can correctly access it
@@ -249,10 +224,14 @@ class StableDiffusionReferenceOnlyPipeline(
                 return_tensors="pt",
             ).pixel_values
 
-            prompt_embeds = self.image_encoder(
-                pixel_values.to(device), output_hidden_states=True
-            )
-            prompt_embeds = prompt_embeds.hidden_states[-2]
+            if train_image_encoder:
+                prompt_embeds = self.image_encoder(
+                    pixel_values.to(device),
+                ).last_hidden_state
+            else:
+                prompt_embeds = self.image_encoder(
+                    pixel_values.to(device), output_hidden_states=True
+                ).hidden_states[-2]
 
         if self.image_encoder is not None:
             prompt_embeds_dtype = self.image_encoder.dtype
@@ -421,7 +400,6 @@ class StableDiffusionReferenceOnlyPipeline(
         return latents
 
     @torch.no_grad()
-    @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
         prompt: Union[Image.Image, List[Image.Image]] = None,
@@ -450,69 +428,8 @@ class StableDiffusionReferenceOnlyPipeline(
         guess_mode: bool = False,
         global_pool_conditions=False,
         latents: Optional[torch.FloatTensor] = None,
+        train_image_encoder=False,
     ):
-        r"""
-        The call function to the pipeline for generation.
-
-        Args:
-            prompt (`str` or `List[str]`, *optional*):
-                The prompt or prompts to guide image generation. If not defined, you need to pass `prompt_embeds`.
-            image (`torch.FloatTensor`, `PIL.Image.Image`, `np.ndarray`, `List[torch.FloatTensor]`, `List[PIL.Image.Image]`, or `List[np.ndarray]`):
-                `Image` or tensor representing an image batch to be used as the starting point. Can also accept image
-                latents as `image`, but if passing latents directly it is not encoded again.
-            strength (`float`, *optional*, defaults to 0.8):
-                Indicates extent to transform the reference `image`. Must be between 0 and 1. `image` is used as a
-                starting point and more noise is added the higher the `strength`. The number of denoising steps depends
-                on the amount of noise initially added. When `strength` is 1, added noise is maximum and the denoising
-                process runs for the full number of iterations specified in `num_inference_steps`. A value of 1
-                essentially ignores `image`.
-            num_inference_steps (`int`, *optional*, defaults to 50):
-                The number of denoising steps. More denoising steps usually lead to a higher quality image at the
-                expense of slower inference. This parameter is modulated by `strength`.
-            guidance_scale (`float`, *optional*, defaults to 7.5):
-                A higher guidance scale value encourages the model to generate images closely linked to the text
-                `prompt` at the expense of lower image quality. Guidance scale is enabled when `guidance_scale > 1`.
-            negative_prompt (`str` or `List[str]`, *optional*):
-                The prompt or prompts to guide what to not include in image generation. If not defined, you need to
-                pass `negative_prompt_embeds` instead. Ignored when not using guidance (`guidance_scale < 1`).
-            num_images_per_prompt (`int`, *optional*, defaults to 1):
-                The number of images to generate per prompt.
-            eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies
-                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
-            generator (`torch.Generator` or `List[torch.Generator]`, *optional*):
-                A [`torch.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make
-                generation deterministic.
-            prompt_embeds (`torch.FloatTensor`, *optional*):
-                Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not
-                provided, text embeddings are generated from the `prompt` input argument.
-            negative_prompt_embeds (`torch.FloatTensor`, *optional*):
-                Pre-generated negative text embeddings. Can be used to easily tweak text inputs (prompt weighting). If
-                not provided, `negative_prompt_embeds` are generated from the `negative_prompt` input argument.
-            output_type (`str`, *optional*, defaults to `"pil"`):
-                The output format of the generated image. Choose between `PIL.Image` or `np.array`.
-            return_dict (`bool`, *optional*, defaults to `True`):
-                Whether or not to return a [`~pipelines.stable_diffusion.StableDiffusionPipelineOutput`] instead of a
-                plain tuple.
-            callback (`Callable`, *optional*):
-                A function that calls every `callback_steps` steps during inference. The function is called with the
-                following arguments: `callback(step: int, timestep: int, latents: torch.FloatTensor)`.
-            callback_steps (`int`, *optional*, defaults to 1):
-                The frequency at which the `callback` function is called. If not specified, the callback is called at
-                every step.
-            cross_attention_kwargs (`dict`, *optional*):
-                A kwargs dictionary that if specified is passed along to the [`AttentionProcessor`] as defined in
-                [`self.processor`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
-
-        Examples:
-
-        Returns:
-            [`~pipelines.stable_diffusion.StableDiffusionPipelineOutput`] or `tuple`:
-                If `return_dict` is `True`, [`~pipelines.stable_diffusion.StableDiffusionPipelineOutput`] is returned,
-                otherwise a `tuple` is returned where the first element is a list with the generated images and the
-                second element is a list of `bool`s indicating whether the corresponding generated image contains
-                "not-safe-for-work" (nsfw) content.
-        """
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
             prompt,
@@ -547,6 +464,7 @@ class StableDiffusionReferenceOnlyPipeline(
             num_images_per_prompt=num_images_per_prompt,
             prompt_embeds=prompt_embeds,
             lora_scale=image_encoder_lora_scale,
+            train_image_encoder=train_image_encoder,
         )
 
         # 4. Preprocess image
