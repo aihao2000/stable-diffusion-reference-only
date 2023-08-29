@@ -17,7 +17,7 @@
   "cross_attention_dim": 1664,
   "cross_attention_norm": null,
   "down_block_types": [
-    "DownBlock2D",
+    "CrossAttnDownBlock2D",
     "CrossAttnDownBlock2D",
     "CrossAttnDownBlock2D"
   ],
@@ -48,8 +48,12 @@
   "time_embedding_dim": null,
   "time_embedding_type": "positional",
   "timestep_post_act": null,
-  "transformer_layers_per_block": [1, 2, 4],
-  "up_block_types": ["CrossAttnUpBlock2D", "CrossAttnUpBlock2D", "UpBlock2D"],
+  "transformer_layers_per_block": [1, 2, 10],
+  "up_block_types": [
+    "CrossAttnUpBlock2D",
+    "CrossAttnUpBlock2D",
+    "CrossAttnUpBlock2D"
+  ],
   "upcast_attention": false,
   "use_linear_projection": true
 }

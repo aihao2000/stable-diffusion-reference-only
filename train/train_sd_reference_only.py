@@ -119,14 +119,14 @@ def log_validation(
         generator = torch.Generator(device=accelerator.device).manual_seed(args.seed)
 
     if len(args.validation_blueprint) == len(args.validation_prompt):
-        validation_blueprints = args.validation_blueprint
-        validation_prompts = args.validation_prompt
+        blueprint_paths = args.validation_blueprint
+        prompt_paths = args.validation_prompt
     elif len(args.validation_blueprint) == 1:
-        validation_blueprints = args.validation_blueprint * len(args.validation_prompt)
-        validation_prompts = args.validation_prompt
+        blueprint_paths = args.validation_blueprint * len(args.validation_prompt)
+        prompt_paths = args.validation_prompt
     elif len(args.validation_prompt) == 1:
-        validation_blueprints = args.validation_blueprint
-        validation_prompts = args.validation_prompt * len(args.validation_blueprint)
+        blueprint_paths = args.validation_blueprint
+        prompt_paths = args.validation_prompt * len(args.validation_blueprint)
     else:
         raise ValueError(
             "number of `args.validation_blueprint` and `args.validation_prompt` should be checked in `parse_args`"
@@ -134,31 +134,16 @@ def log_validation(
 
     image_logs = []
 
-    for validation_prompt, validation_blueprint in zip(
-        validation_prompts, validation_blueprints
-    ):
-        validation_blueprint = cv2.imread(validation_blueprint, cv2.IMREAD_GRAYSCALE)
-        validation_blueprint = cv2.adaptiveThreshold(
-            validation_blueprint,
-            255,
-            cv2.ADAPTIVE_THRESH_MEAN_C,
-            cv2.THRESH_BINARY,
-            blockSize=5,
-            C=7,
-        )
-        validation_blueprint = (
-            Image.fromarray(validation_blueprint).convert("RGB").resize((1024, 1024))
-        )
-        validation_prompt = (
-            Image.open(validation_prompt).convert("RGB").resize((1024, 1024))
-        )
+    for prompt_path, blueprint_path in zip(prompt_paths, blueprint_paths):
+        blueprint = Image.open(blueprint_path).convert("RGB").resize((1024, 1024))
+        prompt = Image.open(prompt_path).convert("RGB").resize((1024, 1024))
         images = []
 
         for _ in range(args.num_validation_images):
             with torch.autocast("cuda"):
                 image = pipeline(
-                    prompt=validation_prompt,
-                    blueprint=validation_blueprint,
+                    prompt=prompt,
+                    blueprint=blueprint,
                     num_inference_steps=20,
                     generator=generator,
                     train_image_encoder=args.train_image_encoder,
@@ -168,9 +153,9 @@ def log_validation(
 
         image_logs.append(
             {
-                "validation_blueprint": validation_blueprint,
+                "prompt": prompt,
+                "blueprint": blueprint,
                 "images": images,
-                "validation_prompt": validation_prompt,
             }
         )
 
@@ -178,12 +163,12 @@ def log_validation(
         if tracker.name == "tensorboard":
             for log in image_logs:
                 images = log["images"]
-                validation_prompt = log["validation_prompt"]
-                validation_blueprint = log["validation_blueprint"]
+                prompt_path = log["prompt"]
+                blueprint_path = log["blueprint"]
 
                 formatted_images = []
 
-                formatted_images.append(np.asarray(validation_blueprint))
+                formatted_images.append(np.asarray(blueprint_path))
 
                 for image in images:
                     formatted_images.append(np.asarray(image))
@@ -191,21 +176,21 @@ def log_validation(
                 formatted_images = np.stack(formatted_images)
 
                 tracker.writer.add_images(
-                    validation_prompt, formatted_images, step, dataformats="NHWC"
+                    prompt_path, formatted_images, step, dataformats="NHWC"
                 )
         elif tracker.name == "wandb":
             formatted_images = []
 
             for log in image_logs:
                 images = log["images"]
-                validation_prompt = log["validation_prompt"]
-                validation_blueprint = log["validation_blueprint"]
+                prompt_path = log["prompt"]
+                blueprint_path = log["blueprint"]
 
                 formatted_images.append(
-                    wandb.Image(validation_prompt, caption="prompt image")
+                    wandb.Image(prompt_path, caption="prompt image")
                 )
                 formatted_images.append(
-                    wandb.Image(validation_blueprint, caption="blueprint image")
+                    wandb.Image(blueprint_path, caption="blueprint image")
                 )
 
                 for image in images:
