@@ -1,5 +1,5 @@
 {
-  "_class_name": "UNet2DConditionModel",
+  "_class_name": "UNet2DDobuleConditionModel",
   "_diffusers_version": "0.21.0.dev0",
   "_name_or_path": "unet",
   "act_fn": "silu",
