@@ -54,7 +54,7 @@ sys.path.append("/home/aihao/workspace/StableDiffusionReferenceOnly/src")
 from stable_diffusion_reference_only.pipelines.stable_diffusion_reference_only_pipeline import (
     StableDiffusionReferenceOnlyPipeline,
 )
-from stable_diffusion_reference_only.models.dobule_condition_unet import (
+from stable_diffusion_reference_only.models.unet_2d_dobule_condition import (
     UNet2DDobuleConditionModel,
 )
 import cv2

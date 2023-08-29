@@ -31,7 +31,7 @@ from diffusers.pipelines.stable_diffusion import (
     StableDiffusionPipelineOutput,
 )
 
-from ..models.dobule_condition_unet import UNet2DDobuleConditionModel
+from ..models.unet_2d_dobule_condition import UNet2DDobuleConditionModel
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -536,16 +536,16 @@ class StableDiffusionReferenceOnlyPipeline(
             self.unet.to("cpu")
             torch.cuda.empty_cache()
         if not output_type == "latent":
-            blueprint = self.vae.decode(
+            image = self.vae.decode(
                 latents / self.vae.config.scaling_factor, return_dict=False
             )[0]
         else:
-            blueprint = latents
+            image = latents
 
         do_denormalize = [True] * blueprint.shape[0]
 
-        blueprint = self.image_processor.postprocess(
-            blueprint, output_type=output_type, do_denormalize=do_denormalize
+        image = self.image_processor.postprocess(
+            image, output_type=output_type, do_denormalize=do_denormalize
         )
 
         # Offload last model to CPU
@@ -553,8 +553,6 @@ class StableDiffusionReferenceOnlyPipeline(
             self.final_offload_hook.offload()
 
         if not return_dict:
-            return (blueprint, None)
+            return (image, None)
 
-        return StableDiffusionPipelineOutput(
-            images=blueprint, nsfw_content_detected=None
-        )
+        return StableDiffusionPipelineOutput(images=image, nsfw_content_detected=None)
