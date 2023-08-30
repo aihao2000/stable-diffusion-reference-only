@@ -163,12 +163,12 @@ def log_validation(
         if tracker.name == "tensorboard":
             for log in image_logs:
                 images = log["images"]
-                prompt_path = log["prompt"]
-                blueprint_path = log["blueprint"]
+                prompt = log["prompt"]
+                blueprint = log["blueprint"]
 
                 formatted_images = []
 
-                formatted_images.append(np.asarray(blueprint_path))
+                formatted_images.append(np.asarray(blueprint))
 
                 for image in images:
                     formatted_images.append(np.asarray(image))
@@ -183,14 +183,12 @@ def log_validation(
 
             for log in image_logs:
                 images = log["images"]
-                prompt_path = log["prompt"]
-                blueprint_path = log["blueprint"]
+                prompt = log["prompt"]
+                blueprint = log["blueprint"]
 
+                formatted_images.append(wandb.Image(prompt, caption="prompt image"))
                 formatted_images.append(
-                    wandb.Image(prompt_path, caption="prompt image")
-                )
-                formatted_images.append(
-                    wandb.Image(blueprint_path, caption="blueprint image")
+                    wandb.Image(blueprint, caption="blueprint image")
                 )
 
                 for image in images:
@@ -830,37 +828,42 @@ def main(args):
         args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision
     )
 
-    # `accelerate` 0.16.0 will have better support for customized saving
-    if version.parse(accelerate.__version__) >= version.parse("0.16.0"):
-        # create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format
-        def save_model_hook(models, weights, output_dir):
-            i = len(weights) - 1
+    # create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format
+    def save_model_hook(models, weights, output_dir):
+        for model in models:
+            sub_dir = (
+                "unet"
+                if isinstance(model, type(accelerator.unwrap_model(unet)))
+                else "image_encoder"
+            )
+            model.save_pretrained(os.path.join(output_dir, sub_dir))
 
-            while len(weights) > 0:
-                weights.pop()
-                model = models[i]
+            # make sure to pop weight so that corresponding model is not saved again
+            weights.pop()
 
-                sub_dir = "unet"
-                model.save_pretrained(os.path.join(output_dir, sub_dir))
+    def load_model_hook(models, input_dir):
+        while len(models) > 0:
+            # pop models so that they are not loaded again
+            model = models.pop()
 
-                i -= 1
-
-        def load_model_hook(models, input_dir):
-            while len(models) > 0:
-                # pop models so that they are not loaded again
-                model = models.pop()
-
+            if isinstance(model, type(accelerator.unwrap_model(image_encoder))):
+                # load transformers style into model
+                load_model = CLIPVisionModel.from_pretrained(
+                    input_dir, subfolder="image_encoder"
+                )
+                model.config = load_model.config
+            else:
                 # load diffusers style into model
                 load_model = UNet2DDobuleConditionModel.from_pretrained(
                     input_dir, subfolder="unet"
                 )
                 model.register_to_config(**load_model.config)
 
-                model.load_state_dict(load_model.state_dict())
-                del load_model
+            model.load_state_dict(load_model.state_dict())
+            del load_model
 
-        accelerator.register_save_state_pre_hook(save_model_hook)
-        accelerator.register_load_state_pre_hook(load_model_hook)
+    accelerator.register_save_state_pre_hook(save_model_hook)
+    accelerator.register_load_state_pre_hook(load_model_hook)
 
     vae.requires_grad_(False)
     unet.requires_grad_(True)
@@ -956,7 +959,6 @@ def main(args):
         num_cycles=args.lr_num_cycles,
         power=args.lr_power,
     )
-
     # Prepare everything with our `accelerator`.
     if args.train_image_encoder:
         (
@@ -1063,6 +1065,9 @@ def main(args):
 
     image_logs = None
     for epoch in range(first_epoch, args.num_train_epochs):
+        unet.train()
+        if args.train_image_encoder:
+            image_encoder.train()
         for step, batch in enumerate(train_dataloader):
             with accelerator.accumulate(unet):
                 # Convert images to latent space
@@ -1094,7 +1099,7 @@ def main(args):
                     ).hidden_states[-2]
                 else:
                     encoder_hidden_states = image_encoder(
-                        batch["prompt_pixel_values"], output_hidden_states=True
+                        batch["prompt_pixel_values"], output_hidden_states=False
                     ).last_hidden_state
                 blueprint = batch["blueprint_pixel_values"].to(dtype=weight_dtype)
 
@@ -1198,6 +1203,8 @@ def main(args):
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:
         unet = accelerator.unwrap_model(unet)
+        if args.train_image_encoder:
+            image_encoder = accelerator.unwrap_mode(image_encoder)
         pipeline = StableDiffusionReferenceOnlyPipeline.from_pretrained(
             args.pretrained_model_name_or_path,
             vae=vae,
