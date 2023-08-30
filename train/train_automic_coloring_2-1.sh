@@ -14,4 +14,5 @@ accelerate launch /home/aihao/workspace/StableDiffusionReferenceOnly/train/train
     --use_8bit_adam \
     --enable_xformers_memory_efficient_attention \
     --seed 2221101 \
-    --mixed_precision=fp16
+    --mixed_precision=fp16 \
+    --resume_from_checkpoint="latest"

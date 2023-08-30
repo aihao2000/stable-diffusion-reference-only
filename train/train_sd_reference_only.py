@@ -57,7 +57,6 @@ from stable_diffusion_reference_only.pipelines.stable_diffusion_reference_only_p
 from stable_diffusion_reference_only.models.unet_2d_dobule_condition import (
     UNet2DDobuleConditionModel,
 )
-import cv2
 
 if is_wandb_available():
     import wandb

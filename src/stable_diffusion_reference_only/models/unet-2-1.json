@@ -5,7 +5,7 @@
   "attention_head_dim": [5, 10, 20, 20],
   "block_out_channels": [320, 640, 1280, 1280],
   "center_input_sample": false,
-  "cross_attention_dim": 1664,
+  "cross_attention_dim": 1024,
   "down_block_types": [
     "CrossAttnDownBlock2D",
     "CrossAttnDownBlock2D",
