@@ -10,10 +10,10 @@
 			"path": "../../diffusers"
 		},
 		{
-			"path": "../../ComicGenerator"
+			"path": "../../ImageRetrieval"
 		},
 		{
-			"path": "../../ImageRetrieval"
+			"path": "../../anime_segmentation"
 		}
 	],
 	"settings": {
