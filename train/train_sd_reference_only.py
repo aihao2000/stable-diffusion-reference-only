@@ -22,6 +22,7 @@ import shutil
 from pathlib import Path
 import itertools
 import accelerate
+from accelerate import DistributedDataParallelKwargs
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -135,6 +136,7 @@ def log_validation(
 
     for prompt_path, blueprint_path in zip(prompt_paths, blueprint_paths):
         blueprint = Image.open(blueprint_path).convert("RGB").resize((1024, 1024))
+        blueprint = Image.eval(blueprint, lambda x: 255 - x)
         prompt = Image.open(prompt_path).convert("RGB").resize((1024, 1024))
         images = []
 
@@ -185,11 +187,8 @@ def log_validation(
                 prompt = log["prompt"]
                 blueprint = log["blueprint"]
 
-                formatted_images.append(wandb.Image(prompt, caption="prompt image"))
-                formatted_images.append(
-                    wandb.Image(blueprint, caption="blueprint image")
-                )
-
+                formatted_images.append(wandb.Image(prompt, caption="prompt"))
+                formatted_images.append(wandb.Image(blueprint, caption="blueprint"))
                 for image in images:
                     image = wandb.Image(image, caption="result")
                     formatted_images.append(image)
@@ -290,6 +289,7 @@ def parse_args(input_args=None):
         action="store_true",
         help="Whether to train the image encoder. If set, the image encoder should be float32 precision.",
     )
+
     parser.add_argument(
         "--train_batch_size",
         type=int,
@@ -393,6 +393,7 @@ def parse_args(input_args=None):
             "Number of subprocesses to use for data loading. 0 means that the data will be loaded in the main process."
         ),
     )
+    parser.add_argument("--load_dataset_num_proc", type=int, default=None)
     parser.add_argument(
         "--adam_beta1",
         type=float,
@@ -510,6 +511,11 @@ def parse_args(input_args=None):
             " https://huggingface.co/docs/datasets/image_dataset#imagefolder. In particular, a `metadata.jsonl` file"
             " must exist to provide the captions for the images. Ignored if `dataset_name` is specified."
         ),
+    )
+    parser.add_argument(
+        "--load_dataset_streaming",
+        default=False,
+        action="store_true",
     )
     parser.add_argument(
         "--image_column",
@@ -641,6 +647,8 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             args.dataset_config_name,
             cache_dir=args.cache_dir,
             data_dir=args.train_data_dir,
+            streaming=args.load_dataset_streaming,
+            num_proc=args.load_dataset_num_proc,
         )
     else:
         if args.train_data_dir is not None:
@@ -720,11 +728,11 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             for prompt in examples[prompt_column]
         ]
 
-        examples["pixel_values"] = images
-        examples["blueprint_pixel_values"] = blueprints
-        examples["prompt_pixel_values"] = prompts
-
-        return examples
+        return {
+            "pixel_values": images,
+            "blueprint_pixel_values": blueprints,
+            "prompt_pixel_values": prompts,
+        }
 
     with accelerator.main_process_first():
         if args.max_train_samples is not None:
@@ -734,7 +742,14 @@ def make_train_dataset(args, clip_image_processor, accelerator):
                 .select(range(args.max_train_samples))
             )
         # Set the training transforms
-        train_dataset = dataset["train"].with_transform(preprocess_train)
+        if args.load_dataset_streaming:
+            train_dataset = dataset["train"].map(
+                preprocess_train,
+                batched=True,
+            )
+            train_dataset = train_dataset.shuffle(seed=args.seed)
+        else:
+            train_dataset = dataset["train"].with_transform(preprocess_train)
 
     return train_dataset
 
@@ -762,6 +777,7 @@ def collate_fn(examples):
 
 
 def main(args):
+    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
     logging_dir = Path(args.output_dir, args.logging_dir)
 
     accelerator_project_config = ProjectConfiguration(
@@ -773,6 +789,7 @@ def main(args):
         mixed_precision=args.mixed_precision,
         log_with=args.report_to,
         project_config=accelerator_project_config,
+        kwargs_handlers=[ddp_kwargs],
     )
 
     # Make one log on every process with the configuration for debugging.
@@ -933,18 +950,30 @@ def main(args):
 
     train_dataset = make_train_dataset(args, clip_image_processor, accelerator)
 
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset,
-        shuffle=True,
-        collate_fn=collate_fn,
-        batch_size=args.train_batch_size,
-        num_workers=args.dataloader_num_workers,
-    )
+    if args.load_dataset_streaming:
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset,
+            collate_fn=collate_fn,
+            batch_size=args.train_batch_size,
+            num_workers=args.dataloader_num_workers,
+        )
+        dataset_len = 0
+        for _ in train_dataloader:
+            dataset_len += 1
+    else:
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset,
+            shuffle=True,
+            collate_fn=collate_fn,
+            batch_size=args.train_batch_size,
+            num_workers=args.dataloader_num_workers,
+        )
+        dataset_len = len(train_dataloader)
 
     # Scheduler and math around the number of training steps.
     overrode_max_train_steps = False
     num_update_steps_per_epoch = math.ceil(
-        len(train_dataloader) / args.gradient_accumulation_steps
+        dataset_len / args.gradient_accumulation_steps
     )
     if args.max_train_steps is None:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
@@ -989,7 +1018,7 @@ def main(args):
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(
-        len(train_dataloader) / args.gradient_accumulation_steps
+        dataset_len / args.gradient_accumulation_steps
     )
     if overrode_max_train_steps:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
@@ -1061,7 +1090,6 @@ def main(args):
         # Only show the progress bar once on each machine.
         disable=not accelerator.is_local_main_process,
     )
-
     image_logs = None
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
