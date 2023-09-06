@@ -23,6 +23,7 @@ from pathlib import Path
 import itertools
 import accelerate
 from accelerate import DistributedDataParallelKwargs
+from accelerate.state import AcceleratorState
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -38,7 +39,7 @@ from PIL import Image
 from torchvision import transforms
 from tqdm.auto import tqdm
 from transformers import CLIPImageProcessor, CLIPVisionModel, PretrainedConfig
-
+from transformers.utils import ContextManagers
 import diffusers
 from diffusers import (
     AutoencoderKL,
@@ -822,23 +823,50 @@ def main(args):
                 token=args.hub_token,
             ).repo_id
 
+    def deepspeed_zero_init_disabled_context_manager():
+        """
+        returns either a context list that includes one that will disable zero.Init or an empty context list
+        """
+        deepspeed_plugin = (
+            AcceleratorState().deepspeed_plugin
+            if accelerate.state.is_initialized()
+            else None
+        )
+        if deepspeed_plugin is None:
+            return []
+
+        return [deepspeed_plugin.zero3_init_context_manager(enable=False)]
+
+    # Currently Accelerate doesn't know how to handle multiple models under Deepspeed ZeRO stage 3.
+    # For this to work properly all models must be run through `accelerate.prepare`. But accelerate
+    # will try to assign the same optimizer with the same weights to all models during
+    # `deepspeed.initialize`, which of course doesn't work.
+    #
+    # For now the following workaround will partially support Deepspeed ZeRO-3, by excluding the 2
+    # frozen models from being partitioned during `zero.Init` which gets called during
+    # `from_pretrained` So CLIPTextModel and AutoencoderKL will not enjoy the parameter sharding
+    # across multiple gpus and only UNet2DConditionModel will get ZeRO sharded.
+    with ContextManagers(deepspeed_zero_init_disabled_context_manager()):
+        if not args.train_image_encoder:
+            image_encoder = CLIPVisionModel.from_pretrained(
+                args.pretrained_model_name_or_path,
+                subfolder="image_encoder",
+            )
+        vae = AutoencoderKL.from_pretrained(
+            args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision
+        )
     clip_image_processor = CLIPImageProcessor.from_pretrained(
         args.pretrained_model_name_or_path,
         subfolder="clip_image_processor",
     )
-
-    image_encoder = CLIPVisionModel.from_pretrained(
-        args.pretrained_model_name_or_path,
-        subfolder="image_encoder",
-    )
-
+    if args.train_image_encoder:
+        image_encoder = CLIPVisionModel.from_pretrained(
+            args.pretrained_model_name_or_path,
+            subfolder="image_encoder",
+        )
     # Load scheduler and models
     noise_scheduler = DDPMScheduler.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="scheduler"
-    )
-
-    vae = AutoencoderKL.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision
     )
     unet = UNet2DDobuleConditionModel.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision
@@ -1053,6 +1081,7 @@ def main(args):
     )
     logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
+    logger.info(f"  train image encoder={args.train_image_encoder}")
     global_step = 0
     first_epoch = 0
 
@@ -1148,7 +1177,6 @@ def main(args):
                         f"Unknown prediction type {noise_scheduler.config.prediction_type}"
                     )
                 loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
-
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
                     params_to_clip = (
