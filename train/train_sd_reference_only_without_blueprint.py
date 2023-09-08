@@ -648,8 +648,7 @@ def make_train_dataset(args, clip_image_processor, accelerator):
         # Set the training transforms
         if args.load_dataset_streaming:
             train_dataset = dataset["train"].map(
-                preprocess_train,
-                batched=True,
+                preprocess_train, batched=True, num_proc=args.load_dataset_num_proc
             )
             train_dataset = train_dataset.shuffle(seed=args.seed)
         else:
