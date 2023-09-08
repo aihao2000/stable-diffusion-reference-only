@@ -67,6 +67,45 @@ check_min_version("0.21.0.dev0")
 logger = get_logger(__name__)
 
 
+def save_model_card(repo_id: str, image_logs=None, base_model=str, repo_folder=None):
+    img_str = ""
+    if image_logs is not None:
+        img_str = "You can find some example images below.\n"
+        for i, log in enumerate(image_logs):
+            images = log["images"]
+            validation_prompt = log["validation_prompt"]
+            validation_blueprint = log["validation_blueprint"]
+            validation_blueprint.save(os.path.join(repo_folder, "blueprint.png"))
+            img_str += f"prompt: {validation_prompt}\n"
+            images = [validation_blueprint] + images
+            image_grid(images, 1, len(images)).save(
+                os.path.join(repo_folder, f"images_{i}.png")
+            )
+            img_str += f"![images_{i})](./images_{i}.png)\n"
+
+    yaml = f"""
+---
+license: creativeml-openrail-m
+base_model: {base_model}
+tags:
+- stable-diffusion
+- stable-diffusion-diffusers
+- text-to-image
+- diffusers
+- unet
+inference: true
+---
+    """
+    model_card = f"""
+# unet-{repo_id}
+
+These are unet weights trained on {base_model} with new type of conditioning.
+{img_str}
+"""
+    with open(os.path.join(repo_folder, "README.md"), "w") as f:
+        f.write(yaml + model_card)
+
+
 def image_grid(imgs, rows, cols):
     assert len(imgs) == rows * cols
 
@@ -91,8 +130,7 @@ def log_validation(
     logger.info("Running validation... ")
 
     unet = accelerator.unwrap_model(unet)
-    if args.train_image_encoder:
-        image_encoder = accelerator.unwrap_model(image_encoder)
+    image_encoder = accelerator.unwrap_model(image_encoder)
 
     pipeline: StableDiffusionReferenceOnlyWithoutControlPipeline = (
         StableDiffusionReferenceOnlyWithoutControlPipeline.from_pretrained(
@@ -162,48 +200,9 @@ def log_validation(
         return image_logs
 
 
-def save_model_card(repo_id: str, image_logs=None, base_model=str, repo_folder=None):
-    img_str = ""
-    if image_logs is not None:
-        img_str = "You can find some example images below.\n"
-        for i, log in enumerate(image_logs):
-            images = log["images"]
-            validation_prompt = log["validation_prompt"]
-            validation_blueprint = log["validation_blueprint"]
-            validation_blueprint.save(os.path.join(repo_folder, "blueprint.png"))
-            img_str += f"prompt: {validation_prompt}\n"
-            images = [validation_blueprint] + images
-            image_grid(images, 1, len(images)).save(
-                os.path.join(repo_folder, f"images_{i}.png")
-            )
-            img_str += f"![images_{i})](./images_{i}.png)\n"
-
-    yaml = f"""
----
-license: creativeml-openrail-m
-base_model: {base_model}
-tags:
-- stable-diffusion
-- stable-diffusion-diffusers
-- text-to-image
-- diffusers
-- unet
-inference: true
----
-    """
-    model_card = f"""
-# unet-{repo_id}
-
-These are unet weights trained on {base_model} with new type of conditioning.
-{img_str}
-"""
-    with open(os.path.join(repo_folder, "README.md"), "w") as f:
-        f.write(yaml + model_card)
-
-
 def parse_args(input_args=None):
     parser = argparse.ArgumentParser(
-        description="Simple example of a UNet2DDobuleConditionModel training script."
+        description="Simple example of a stable diffusion reference only without control training script."
     )
     parser.add_argument(
         "--pretrained_model_name_or_path",
@@ -507,12 +506,6 @@ def parse_args(input_args=None):
         ),
     )
     parser.add_argument(
-        "--proportion_empty_prompts",
-        type=float,
-        default=0,
-        help="Proportion of image prompts to be replaced with empty strings. Defaults to 0 (no prompt replacement).",
-    )
-    parser.add_argument(
         "--validation_prompt",
         type=str,
         default=None,
@@ -562,9 +555,6 @@ def parse_args(input_args=None):
 
     if args.dataset_name is None and args.train_data_dir is None:
         raise ValueError("Specify either `--dataset_name` or `--train_data_dir`")
-
-    if args.proportion_empty_prompts < 0 or args.proportion_empty_prompts > 1:
-        raise ValueError("`--proportion_empty_prompts` must be in the range [0, 1].")
 
     if args.resolution % 8 != 0:
         raise ValueError(
@@ -755,11 +745,6 @@ def main(args):
     # `from_pretrained` So CLIPTextModel and AutoencoderKL will not enjoy the parameter sharding
     # across multiple gpus and only UNet2DConditionModel will get ZeRO sharded.
     with ContextManagers(deepspeed_zero_init_disabled_context_manager()):
-        if not args.train_image_encoder:
-            image_encoder = CLIPVisionModel.from_pretrained(
-                args.pretrained_model_name_or_path,
-                subfolder="image_encoder",
-            )
         vae = AutoencoderKL.from_pretrained(
             args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision
         )
@@ -767,11 +752,10 @@ def main(args):
         args.pretrained_model_name_or_path,
         subfolder="clip_image_processor",
     )
-    if args.train_image_encoder:
-        image_encoder = CLIPVisionModel.from_pretrained(
-            args.pretrained_model_name_or_path,
-            subfolder="image_encoder",
-        )
+    image_encoder = CLIPVisionModel.from_pretrained(
+        args.pretrained_model_name_or_path,
+        subfolder="image_encoder",
+    )
     # Load scheduler and models
     noise_scheduler = DDPMScheduler.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="scheduler"
@@ -806,7 +790,7 @@ def main(args):
                 model.config = load_model.config
             else:
                 # load diffusers style into model
-                load_model = UNet2DDobuleConditionModel.from_pretrained(
+                load_model = UNet2DConditionModel.from_pretrained(
                     input_dir, subfolder="unet"
                 )
                 model.register_to_config(**load_model.config)
@@ -872,9 +856,7 @@ def main(args):
         optimizer_class = torch.optim.AdamW
 
     optimizer = optimizer_class(
-        itertools.chain(unet.parameters(), image_encoder.parameters())
-        if args.train_image_encoder
-        else unet.parameters(),
+        itertools.chain(unet.parameters(), image_encoder.parameters()),
         lr=args.learning_rate,
         betas=(args.adam_beta1, args.adam_beta2),
         weight_decay=args.adam_weight_decay,
@@ -920,21 +902,8 @@ def main(args):
         num_cycles=args.lr_num_cycles,
         power=args.lr_power,
     )
-    # Prepare everything with our `accelerator`.
-    if args.train_image_encoder:
-        (
-            unet,
-            image_encoder,
-            optimizer,
-            train_dataloader,
-            lr_scheduler,
-        ) = accelerator.prepare(
-            unet, image_encoder, optimizer, train_dataloader, lr_scheduler
-        )
-    else:
-        unet, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
-            unet, optimizer, train_dataloader, lr_scheduler
-        )
+
+    accelerator.prepare(unet, image_encoder, optimizer, train_dataloader, lr_scheduler)
 
     # For mixed precision training we cast the text_encoder and vae weights to half-precision
     # as these models are only used for inference, keeping weights in full precision is not required.
@@ -946,8 +915,6 @@ def main(args):
 
     # Move vae, unet and text_encoder to device and cast to weight_dtype
     vae.to(accelerator.device, dtype=weight_dtype)
-    if not args.train_image_encoder:
-        image_encoder.to(accelerator.device, dtype=weight_dtype)
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(
@@ -965,7 +932,6 @@ def main(args):
 
         # tensorboard cannot handle list types for config
         tracker_config.pop("validation_prompt")
-        tracker_config.pop("validation_blueprint")
 
         accelerator.init_trackers(args.tracker_project_name, config=tracker_config)
 
@@ -1074,11 +1040,10 @@ def main(args):
                 loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
-                    params_to_clip = (
-                        itertools.chain(unet.parameters(), image_encoder.parameters())
-                        if args.train_image_encoder
-                        else unet.parameters()
+                    params_to_clip = itertools.chain(
+                        unet.parameters(), image_encoder.parameters()
                     )
+
                     accelerator.clip_grad_norm_(params_to_clip, args.max_grad_norm)
                 optimizer.step()
                 lr_scheduler.step()
@@ -1153,8 +1118,7 @@ def main(args):
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:
         unet = accelerator.unwrap_model(unet)
-        if args.train_image_encoder:
-            image_encoder = accelerator.unwrap_mode(image_encoder)
+        image_encoder = accelerator.unwrap_mode(image_encoder)
         pipeline = StableDiffusionReferenceOnlyWithoutControlPipeline.from_pretrained(
             args.pretrained_model_name_or_path,
             vae=vae,
