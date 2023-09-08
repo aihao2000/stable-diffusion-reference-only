@@ -36,7 +36,7 @@ from diffusers.pipelines.stable_diffusion import (
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-class StableDiffusionReferenceOnlyWithoutControlPipeline(
+class StableDiffusionReferenceOnlyWithoutBlueprintipeline(
     DiffusionPipeline, LoraLoaderMixin, FromSingleFileMixin
 ):
     def __init__(

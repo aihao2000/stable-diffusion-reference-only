@@ -54,8 +54,8 @@ from diffusers.utils.import_utils import is_xformers_available
 import sys
 
 sys.path.append("/home/aihao/workspace/StableDiffusionReferenceOnly/src")
-from stable_diffusion_reference_only.pipelines.stable_diffusion_reference_only_without_control_pipeline import (
-    StableDiffusionReferenceOnlyWithoutControlPipeline,
+from stable_diffusion_reference_only.pipelines.stable_diffusion_reference_only_without_blueprint_pipeline import (
+    StableDiffusionReferenceOnlyWithoutBlueprintipeline,
 )
 
 if is_wandb_available():
@@ -132,8 +132,8 @@ def log_validation(
     unet = accelerator.unwrap_model(unet)
     image_encoder = accelerator.unwrap_model(image_encoder)
 
-    pipeline: StableDiffusionReferenceOnlyWithoutControlPipeline = (
-        StableDiffusionReferenceOnlyWithoutControlPipeline.from_pretrained(
+    pipeline: StableDiffusionReferenceOnlyWithoutBlueprintipeline = (
+        StableDiffusionReferenceOnlyWithoutBlueprintipeline.from_pretrained(
             args.pretrained_model_name_or_path,
             vae=vae,
             image_encoder=image_encoder,
@@ -823,12 +823,6 @@ def main(args):
     if args.gradient_checkpointing:
         unet.enable_gradient_checkpointing()
 
-    # Check that all trainable models are in full precision
-    low_precision_error_string = (
-        " Please make sure to always have all model weights in full float32 precision when starting training - even if"
-        " doing mixed precision training, copy of the weights should still be float32."
-    )
-
     # Enable TF32 for faster training on Ampere GPUs,
     # cf https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices
     if args.allow_tf32:
@@ -872,9 +866,6 @@ def main(args):
             batch_size=args.train_batch_size,
             num_workers=args.dataloader_num_workers,
         )
-        dataset_len = 0
-        for _ in train_dataloader:
-            dataset_len += 1
     else:
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset,
@@ -883,16 +874,6 @@ def main(args):
             batch_size=args.train_batch_size,
             num_workers=args.dataloader_num_workers,
         )
-        dataset_len = len(train_dataloader)
-
-    # Scheduler and math around the number of training steps.
-    overrode_max_train_steps = False
-    num_update_steps_per_epoch = math.ceil(
-        dataset_len / args.gradient_accumulation_steps
-    )
-    if args.max_train_steps is None:
-        args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
-        overrode_max_train_steps = True
 
     lr_scheduler = get_scheduler(
         args.lr_scheduler,
@@ -916,17 +897,6 @@ def main(args):
     # Move vae, unet and text_encoder to device and cast to weight_dtype
     vae.to(accelerator.device, dtype=weight_dtype)
 
-    # We need to recalculate our total training steps as the size of the training dataloader may have changed.
-    num_update_steps_per_epoch = math.ceil(
-        dataset_len / args.gradient_accumulation_steps
-    )
-    if overrode_max_train_steps:
-        args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
-    # Afterwards we recalculate our number of training epochs
-    args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
-
-    # We need to initialize the trackers we use, and also store our configuration.
-    # The trackers initializes automatically on the main process.
     if accelerator.is_main_process:
         tracker_config = dict(vars(args))
 
@@ -944,8 +914,6 @@ def main(args):
 
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(train_dataset)}")
-    logger.info(f"  Num batches each epoch = {len(train_dataloader)}")
-    logger.info(f"  Num Epochs = {args.num_train_epochs}")
     logger.info(f"  Instantaneous batch size per device = {args.train_batch_size}")
     logger.info(
         f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}"
@@ -953,7 +921,6 @@ def main(args):
     logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
     global_step = 0
-    first_epoch = 0
 
     # Potentially load in the weights and states from a previous save
     if args.resume_from_checkpoint:
@@ -975,10 +942,7 @@ def main(args):
         else:
             accelerator.print(f"Resuming from checkpoint {path}")
             accelerator.load_state(os.path.join(args.output_dir, path))
-            global_step = int(path.split("-")[1])
-
-            initial_global_step = global_step
-            first_epoch = global_step // num_update_steps_per_epoch
+            initial_global_step = int(path.split("-")[1])
     else:
         initial_global_step = 0
 
@@ -990,10 +954,14 @@ def main(args):
         disable=not accelerator.is_local_main_process,
     )
     image_logs = None
-    for epoch in range(first_epoch, args.num_train_epochs):
+    global_step = 0
+    while True:
         unet.train()
         image_encoder.train()
-        for step, batch in enumerate(train_dataloader):
+        for batch in train_dataloader:
+            if global_step < initial_global_step:
+                global_step += 1
+                continue
             with accelerator.accumulate(unet):
                 # Convert images to latent space
                 latents = vae.encode(
@@ -1113,13 +1081,15 @@ def main(args):
 
             if global_step >= args.max_train_steps:
                 break
+        if global_step >= args.max_train_steps:
+            break
 
     # Create the pipeline using using the trained modules and save it.
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:
         unet = accelerator.unwrap_model(unet)
         image_encoder = accelerator.unwrap_mode(image_encoder)
-        pipeline = StableDiffusionReferenceOnlyWithoutControlPipeline.from_pretrained(
+        pipeline = StableDiffusionReferenceOnlyWithoutBlueprintipeline.from_pretrained(
             args.pretrained_model_name_or_path,
             vae=vae,
             image_encoder=image_encoder,
