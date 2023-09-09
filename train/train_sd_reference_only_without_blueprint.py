@@ -485,12 +485,6 @@ def parse_args(input_args=None):
         help="The column of the dataset containing the target image.",
     )
     parser.add_argument(
-        "--blueprint_column",
-        type=str,
-        default="blueprint",
-        help="The column of the dataset containing the blueprint image.",
-    )
-    parser.add_argument(
         "--prompt_column",
         type=str,
         default="prompt",
@@ -647,9 +641,7 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             )
         # Set the training transforms
         if args.load_dataset_streaming:
-            train_dataset = dataset["train"].map(
-                preprocess_train, batched=True, num_proc=args.load_dataset_num_proc
-            )
+            train_dataset = dataset["train"].map(preprocess_train)
             train_dataset = train_dataset.shuffle(seed=args.seed)
         else:
             train_dataset = dataset["train"].with_transform(preprocess_train)
@@ -883,7 +875,9 @@ def main(args):
         power=args.lr_power,
     )
 
-    accelerator.prepare(unet, image_encoder, optimizer, train_dataloader, lr_scheduler)
+    unet, image_encoder, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+        unet, image_encoder, optimizer, train_dataloader, lr_scheduler
+    )
 
     # For mixed precision training we cast the text_encoder and vae weights to half-precision
     # as these models are only used for inference, keeping weights in full precision is not required.
@@ -912,7 +906,6 @@ def main(args):
     )
 
     logger.info("***** Running training *****")
-    logger.info(f"  Num examples = {len(train_dataset)}")
     logger.info(f"  Instantaneous batch size per device = {args.train_batch_size}")
     logger.info(
         f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}"
@@ -953,8 +946,7 @@ def main(args):
         disable=not accelerator.is_local_main_process,
     )
     image_logs = None
-    global_step = 0
-    while True:
+    while global_step < args.max_train_steps:
         unet.train()
         image_encoder.train()
         for batch in train_dataloader:
@@ -1080,8 +1072,6 @@ def main(args):
 
             if global_step >= args.max_train_steps:
                 break
-        if global_step >= args.max_train_steps:
-            break
 
     # Create the pipeline using using the trained modules and save it.
     accelerator.wait_for_everyone()
