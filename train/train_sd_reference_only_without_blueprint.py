@@ -160,7 +160,7 @@ def log_validation(
     image_logs = []
 
     for prompt_path in prompt_paths:
-        prompt = Image.open(prompt_path).convert("RGB").resize((1024, 1024))
+        prompt = Image.open(prompt_path).convert("RGB").resize((512, 512))
         images = []
 
         for _ in range(args.num_validation_images):
@@ -169,6 +169,8 @@ def log_validation(
                     prompt=prompt,
                     num_inference_steps=20,
                     generator=generator,
+                    height=512,
+                    width=512,
                 ).images[0]
 
             images.append(image)
@@ -247,7 +249,7 @@ def parse_args(input_args=None):
     )
 
     parser.add_argument(
-        "--multi_gpu",
+        "--ddp_find_unused_parameters",
         default=False,
         action="store_true",
     )
@@ -511,12 +513,6 @@ def parse_args(input_args=None):
         ),
     )
     parser.add_argument(
-        "--validation_blueprint",
-        type=str,
-        default=None,
-        nargs="+",
-    )
-    parser.add_argument(
         "--num_validation_images",
         type=int,
         default=1,
@@ -664,23 +660,28 @@ def collate_fn(examples):
 
 
 def main(args):
-    if args.multi_gpu:
-        ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
-    else:
-        ddp_kwargs = None
     logging_dir = Path(args.output_dir, args.logging_dir)
 
     accelerator_project_config = ProjectConfiguration(
         project_dir=args.output_dir, logging_dir=logging_dir
     )
 
-    accelerator = Accelerator(
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        mixed_precision=args.mixed_precision,
-        log_with=args.report_to,
-        project_config=accelerator_project_config,
-        kwargs_handlers=[ddp_kwargs],
-    )
+    if args.ddp_find_unused_parameters:
+        ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+        accelerator = Accelerator(
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
+            mixed_precision=args.mixed_precision,
+            log_with=args.report_to,
+            project_config=accelerator_project_config,
+            kwargs_handlers=[ddp_kwargs],
+        )
+    else:
+        accelerator = Accelerator(
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
+            mixed_precision=args.mixed_precision,
+            log_with=args.report_to,
+            project_config=accelerator_project_config,
+        )
 
     # Make one log on every process with the configuration for debugging.
     logging.basicConfig(
@@ -865,6 +866,16 @@ def main(args):
             batch_size=args.train_batch_size,
             num_workers=args.dataloader_num_workers,
         )
+        dataset_len = len(train_dataloader)
+
+    # Scheduler and math around the number of training steps.
+    overrode_max_train_steps = False
+    num_update_steps_per_epoch = math.ceil(
+        len(train_dataloader) / args.gradient_accumulation_steps
+    )
+    if args.max_train_steps is None:
+        args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
+        overrode_max_train_steps = True
 
     lr_scheduler = get_scheduler(
         args.lr_scheduler,
@@ -875,7 +886,13 @@ def main(args):
         power=args.lr_power,
     )
 
-    unet, image_encoder, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+    (
+        unet,
+        image_encoder,
+        optimizer,
+        train_dataloader,
+        lr_scheduler,
+    ) = accelerator.prepare(
         unet, image_encoder, optimizer, train_dataloader, lr_scheduler
     )
 
@@ -889,6 +906,15 @@ def main(args):
 
     # Move vae, unet and text_encoder to device and cast to weight_dtype
     vae.to(accelerator.device, dtype=weight_dtype)
+
+    # We need to recalculate our total training steps as the size of the training dataloader may have changed.
+    num_update_steps_per_epoch = math.ceil(
+        len(train_dataloader) / args.gradient_accumulation_steps
+    )
+    if overrode_max_train_steps:
+        args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
+    # Afterwards we recalculate our number of training epochs
+    args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
 
     if accelerator.is_main_process:
         tracker_config = dict(vars(args))
@@ -906,6 +932,9 @@ def main(args):
     )
 
     logger.info("***** Running training *****")
+    logger.info(f"  Num examples = {len(train_dataset)}")
+    logger.info(f"  Num batches each epoch = {len(train_dataloader)}")
+    logger.info(f"  Num Epochs = {args.num_train_epochs}")
     logger.info(f"  Instantaneous batch size per device = {args.train_batch_size}")
     logger.info(
         f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}"
@@ -913,6 +942,7 @@ def main(args):
     logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
     global_step = 0
+    first_epoch = 0
 
     # Potentially load in the weights and states from a previous save
     if args.resume_from_checkpoint:
@@ -930,28 +960,36 @@ def main(args):
                 f"Checkpoint '{args.resume_from_checkpoint}' does not exist. Starting a new training run."
             )
             args.resume_from_checkpoint = None
-            initial_global_step = 0
         else:
             accelerator.print(f"Resuming from checkpoint {path}")
             accelerator.load_state(os.path.join(args.output_dir, path))
-            initial_global_step = int(path.split("-")[1])
-    else:
-        initial_global_step = 0
+            global_step = int(path.split("-")[1])
+
+            resume_global_step = global_step * args.gradient_accumulation_steps
+            first_epoch = global_step // num_update_steps_per_epoch
+            resume_step = resume_global_step % (
+                num_update_steps_per_epoch * args.gradient_accumulation_steps
+            )
 
     progress_bar = tqdm(
         range(0, args.max_train_steps),
-        initial=initial_global_step,
+        initial=global_step,
         desc="Steps",
         # Only show the progress bar once on each machine.
         disable=not accelerator.is_local_main_process,
     )
     image_logs = None
-    while global_step < args.max_train_steps:
+    for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
         image_encoder.train()
-        for batch in train_dataloader:
-            if global_step < initial_global_step:
-                global_step += 1
+        for step, batch in enumerate(train_dataloader):
+            if (
+                args.resume_from_checkpoint
+                and epoch == first_epoch
+                and step < resume_step
+            ):
+                if step % args.gradient_accumulation_steps == 0:
+                    progress_bar.update(1)
                 continue
             with accelerator.accumulate(unet):
                 # Convert images to latent space
