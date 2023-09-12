@@ -1,6 +1,6 @@
 accelerate launch --multi_gpu --mixed_precision=fp16 train/train_sd_reference_only_without_blueprint.py \
     --ddp_find_unused_parameters \
-    --pretrained_model_name_or_path='/home/aihao/workspace/DeepLearningContent/models/sd_reference_only_without_blueprint/sd-2-1-init' \
+    --pretrained_model_name_or_path='/home/aihao/workspace/DeepLearningContent/models/sd_reference_only_without_blueprint/associative_paint_0.1' \
     --dataset_name='/home/aihao/workspace/DeepLearningContent/datasets/characters' \
     --dataset_config_name='similar_pairs' \
     --train_data_dir='/home/aihao/workspace/DeepLearningContent/datasets/characters' \
@@ -11,8 +11,8 @@ accelerate launch --multi_gpu --mixed_precision=fp16 train/train_sd_reference_on
     --prompt_column='image1' \
     --image_column='image2' \
     --train_batch_size=2 \
-    --max_train_steps=1000000 \
-    --learning_rate=5e-5 \
+    --max_train_steps=900000 \
+    --learning_rate=1e-5 \
     --checkpointing_steps=1000 \
     --validation_steps=1000 \
     --validation_prompt "validation_images/1/1.png" "validation_images/2/1.png" "validation_images/3/1.png" "validation_images/4/1.png" \
@@ -22,4 +22,3 @@ accelerate launch --multi_gpu --mixed_precision=fp16 train/train_sd_reference_on
     --mixed_precision=fp16 \
     --resolution=512
 # --resume_from_checkpoint="latest"
-# --load_dataset_streaming
