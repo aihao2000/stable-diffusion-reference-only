@@ -9,7 +9,7 @@ accelerate launch --multi_gpu --mixed_precision=fp16 train/train_sd_reference_on
     --tracker_project_name='automatic_coloring' \
     --train_batch_size=6 \
     --max_train_steps=500000 \
-    --learning_rate=5e-5 \
+    --learning_rate=1e-5 \
     --checkpointing_steps=1000 \
     --validation_steps=10 \
     --validation_prompt "validation_images/1/1.png" "validation_images/2/1.png" "validation_images/3/1.png" "validation_images/4/1.png" \

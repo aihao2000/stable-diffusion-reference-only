@@ -1,8 +1,10 @@
+#!/usr/bin/env python
+# coding=utf-8
+
 import argparse
 import logging
 import math
 import os
-import random
 import shutil
 from pathlib import Path
 import itertools
@@ -32,7 +34,7 @@ from diffusers import (
     UniPCMultistepScheduler,
 )
 from diffusers.optimization import get_scheduler
-from diffusers.utils import check_min_version, is_wandb_available
+from diffusers.utils import is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
 import cv2
 import sys
@@ -1102,6 +1104,7 @@ def main(args):
             resume_step = resume_global_step % (
                 num_update_steps_per_epoch * args.gradient_accumulation_steps
             )
+            accelerator.print(f"resume_step:{resume_step}")
 
     # Only show the progress bar once on each machine.
     progress_bar = tqdm(
@@ -1125,7 +1128,6 @@ def main(args):
                 if step % args.gradient_accumulation_steps == 0:
                     progress_bar.update(1)
                 continue
-            logger.info(str(batch["blueprint_pixel_values"]))
             with accelerator.accumulate(unet):
                 # Convert images to latent space
                 latents = vae.encode(
@@ -1196,7 +1198,7 @@ def main(args):
                 global_step += 1
                 accelerator.log({"train_loss": train_loss}, step=global_step)
                 train_loss = 0.0
-                
+
                 if accelerator.is_main_process:
                     if global_step % args.checkpointing_steps == 0:
                         # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
