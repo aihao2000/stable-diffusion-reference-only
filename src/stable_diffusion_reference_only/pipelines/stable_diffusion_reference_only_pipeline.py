@@ -17,14 +17,15 @@ from diffusers.loaders import (
 )
 from diffusers.models import AutoencoderKL, UNet2DConditionModel
 from diffusers.schedulers import KarrasDiffusionSchedulers
+from diffusers.utils.torch_utils import (
+    randn_tensor,
+)
 from diffusers.utils import (
     PIL_INTERPOLATION,
     deprecate,
     is_accelerate_available,
     is_accelerate_version,
     logging,
-    randn_tensor,
-    replace_example_docstring,
 )
 from diffusers import DiffusionPipeline
 from diffusers.pipelines.stable_diffusion import (
