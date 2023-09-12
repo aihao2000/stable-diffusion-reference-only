@@ -1,18 +1,3 @@
-#!/usr/bin/env python
-# coding=utf-8
-# Copyright 2023 The HuggingFace Inc. team. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-
 import argparse
 import logging
 import math
@@ -932,12 +917,6 @@ def main(args):
     if args.gradient_checkpointing:
         unet.enable_gradient_checkpointing()
 
-    # Check that all trainable models are in full precision
-    low_precision_error_string = (
-        " Please make sure to always have all model weights in full float32 precision when starting training - even if"
-        " doing mixed precision training, copy of the weights should still be float32."
-    )
-
     # Enable TF32 for faster training on Ampere GPUs,
     # cf https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices
     if args.allow_tf32:
@@ -1120,7 +1099,8 @@ def main(args):
     image_logs = None
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
-        image_encoder.train()
+        if args.train_image_encoder:
+            image_encoder.train()
         for step, batch in enumerate(train_dataloader):
             if (
                 args.resume_from_checkpoint

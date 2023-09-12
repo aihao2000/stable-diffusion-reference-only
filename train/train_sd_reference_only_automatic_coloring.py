@@ -932,12 +932,6 @@ def main(args):
     if args.gradient_checkpointing:
         unet.enable_gradient_checkpointing()
 
-    # Check that all trainable models are in full precision
-    low_precision_error_string = (
-        " Please make sure to always have all model weights in full float32 precision when starting training - even if"
-        " doing mixed precision training, copy of the weights should still be float32."
-    )
-
     # Enable TF32 for faster training on Ampere GPUs,
     # cf https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices
     if args.allow_tf32:
@@ -1071,7 +1065,6 @@ def main(args):
 
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(train_dataset)}")
-    logger.info(f"  Num batches each epoch = {len(train_dataloader)}")
     logger.info(f"  Num Epochs = {args.num_train_epochs}")
     logger.info(f"  Instantaneous batch size per device = {args.train_batch_size}")
     logger.info(
@@ -1110,17 +1103,19 @@ def main(args):
                 num_update_steps_per_epoch * args.gradient_accumulation_steps
             )
 
+    # Only show the progress bar once on each machine.
     progress_bar = tqdm(
-        range(0, args.max_train_steps),
-        initial=global_step,
-        desc="Steps",
-        # Only show the progress bar once on each machine.
+        range(global_step, args.max_train_steps),
         disable=not accelerator.is_local_main_process,
     )
+    progress_bar.set_description("Steps")
+
     image_logs = None
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
-        image_encoder.train()
+        if args.train_image_encoder:
+            image_encoder.train()
+        train_loss = 0.0
         for step, batch in enumerate(train_dataloader):
             if (
                 args.resume_from_checkpoint
@@ -1130,6 +1125,7 @@ def main(args):
                 if step % args.gradient_accumulation_steps == 0:
                     progress_bar.update(1)
                 continue
+            logger.info(str(batch["blueprint_pixel_values"]))
             with accelerator.accumulate(unet):
                 # Convert images to latent space
                 latents = vae.encode(
@@ -1153,15 +1149,10 @@ def main(args):
                 # (this is the forward diffusion process)
                 noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
-                # Get the text embedding for conditioning
-                if args.train_image_encoder:
-                    encoder_hidden_states = image_encoder(
-                        batch["prompt_pixel_values"], output_hidden_states=True
-                    ).hidden_states[-2]
-                else:
-                    encoder_hidden_states = image_encoder(
-                        batch["prompt_pixel_values"], output_hidden_states=False
-                    ).last_hidden_state
+                encoder_hidden_states = image_encoder(
+                    batch["prompt_pixel_values"], output_hidden_states=False
+                ).last_hidden_state
+
                 blueprint = batch["blueprint_pixel_values"].to(dtype=weight_dtype)
 
                 # Predict the noise residual
@@ -1182,6 +1173,11 @@ def main(args):
                         f"Unknown prediction type {noise_scheduler.config.prediction_type}"
                     )
                 loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+
+                # Gather the losses across all processes for logging (if we use distributed training).
+                avg_loss = accelerator.gather(loss.repeat(args.train_batch_size)).mean()
+                train_loss += avg_loss.item() / args.gradient_accumulation_steps
+
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
                     params_to_clip = (
@@ -1198,7 +1194,9 @@ def main(args):
             if accelerator.sync_gradients:
                 progress_bar.update(1)
                 global_step += 1
-
+                accelerator.log({"train_loss": train_loss}, step=global_step)
+                train_loss = 0.0
+                
                 if accelerator.is_main_process:
                     if global_step % args.checkpointing_steps == 0:
                         # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
@@ -1254,7 +1252,6 @@ def main(args):
 
             logs = {"loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0]}
             progress_bar.set_postfix(**logs)
-            accelerator.log(logs, step=global_step)
 
             if global_step >= args.max_train_steps:
                 break
