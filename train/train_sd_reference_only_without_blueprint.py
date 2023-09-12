@@ -53,7 +53,7 @@ from diffusers.utils.import_utils import is_xformers_available
 
 import sys
 
-sys.path.append("/home/aihao/workspace/StableDiffusionReferenceOnly/src")
+sys.path.append("..")
 from stable_diffusion_reference_only.pipelines.stable_diffusion_reference_only_without_blueprint_pipeline import (
     StableDiffusionReferenceOnlyWithoutBlueprintipeline,
 )

@@ -52,7 +52,7 @@ from diffusers.utils.import_utils import is_xformers_available
 
 import sys
 
-sys.path.append("../src")
+sys.path.append("src")
 from stable_diffusion_reference_only.pipelines.stable_diffusion_reference_only_pipeline import (
     StableDiffusionReferenceOnlyPipeline,
 )
