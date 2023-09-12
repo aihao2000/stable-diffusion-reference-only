@@ -52,7 +52,7 @@ from diffusers.utils.import_utils import is_xformers_available
 
 import sys
 
-sys.path.append("/home/aihao/workspace/StableDiffusionReferenceOnly/src")
+sys.path.append("../src")
 from stable_diffusion_reference_only.pipelines.stable_diffusion_reference_only_pipeline import (
     StableDiffusionReferenceOnlyPipeline,
 )
@@ -1001,7 +1001,7 @@ def main(args):
     # Scheduler and math around the number of training steps.
     overrode_max_train_steps = False
     num_update_steps_per_epoch = math.ceil(
-        dataset_len / args.gradient_accumulation_steps
+        len(train_dataloader) / args.gradient_accumulation_steps
     )
     if args.max_train_steps is None:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
@@ -1046,7 +1046,7 @@ def main(args):
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(
-        dataset_len / args.gradient_accumulation_steps
+        len(train_dataloader) / args.gradient_accumulation_steps
     )
     if overrode_max_train_steps:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
@@ -1101,20 +1101,20 @@ def main(args):
                 f"Checkpoint '{args.resume_from_checkpoint}' does not exist. Starting a new training run."
             )
             args.resume_from_checkpoint = None
-            initial_global_step = 0
         else:
             accelerator.print(f"Resuming from checkpoint {path}")
             accelerator.load_state(os.path.join(args.output_dir, path))
             global_step = int(path.split("-")[1])
 
-            initial_global_step = global_step
+            resume_global_step = global_step * args.gradient_accumulation_steps
             first_epoch = global_step // num_update_steps_per_epoch
-    else:
-        initial_global_step = 0
+            resume_step = resume_global_step % (
+                num_update_steps_per_epoch * args.gradient_accumulation_steps
+            )
 
     progress_bar = tqdm(
         range(0, args.max_train_steps),
-        initial=initial_global_step,
+        initial=global_step,
         desc="Steps",
         # Only show the progress bar once on each machine.
         disable=not accelerator.is_local_main_process,
@@ -1122,9 +1122,16 @@ def main(args):
     image_logs = None
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
-        if args.train_image_encoder:
-            image_encoder.train()
+        image_encoder.train()
         for step, batch in enumerate(train_dataloader):
+            if (
+                args.resume_from_checkpoint
+                and epoch == first_epoch
+                and step < resume_step
+            ):
+                if step % args.gradient_accumulation_steps == 0:
+                    progress_bar.update(1)
+                continue
             with accelerator.accumulate(unet):
                 # Convert images to latent space
                 latents = vae.encode(
