@@ -25,7 +25,7 @@ from packaging import version
 from PIL import Image
 from torchvision import transforms
 from tqdm.auto import tqdm
-from transformers import CLIPImageProcessor, CLIPVisionModel, PretrainedConfig
+from transformers import CLIPImageProcessor, CLIPVisionModel
 from transformers.utils import ContextManagers
 import diffusers
 from diffusers import (
@@ -383,6 +383,11 @@ def parse_args(input_args=None):
         help=(
             "Number of subprocesses to use for data loading. 0 means that the data will be loaded in the main process."
         ),
+    )
+    parser.add_argument(
+        "--dataset_map",
+        default=False,
+        action="store_true",
     )
     parser.add_argument("--load_dataset_num_proc", type=int, default=None)
     parser.add_argument(
@@ -742,7 +747,12 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             )
             train_dataset = train_dataset.shuffle(seed=args.seed)
         else:
-            train_dataset = dataset["train"].with_transform(preprocess_train)
+            if args.dataset_map:
+                train_dataset = dataset["train"].map(
+                    preprocess_train, batch_size=8, batched=True
+                )
+            else:
+                train_dataset = dataset["train"].with_transform(preprocess_train)
 
     return train_dataset
 
