@@ -11,7 +11,7 @@ accelerate launch --multi_gpu --mixed_precision=fp16 train/train_sd_reference_on
     --max_train_steps=500000 \
     --learning_rate=1e-5 \
     --checkpointing_steps=1000 \
-    --validation_steps=10 \
+    --validation_steps=1000 \
     --validation_prompt "validation_images/1/1.png" "validation_images/2/1.png" "validation_images/3/1.png" "validation_images/4/1.png" \
     --validation_blueprint "validation_images/1/2.png" "validation_images/2/2.png" "validation_images/3/2.png" "validation_images/4/2.png" \
     --use_8bit_adam \
