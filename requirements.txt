@@ -1,0 +1,17 @@
+accelerate==0.22.0.dev0
+bitsandbytes==0.41.1
+datasets==2.14.3
+diffusers==0.20.0.dev0
+huggingface_hub==0.16.4
+numpy==1.25.1
+opencv_python==4.8.0.74
+opencv_python_headless==4.8.0.74
+packaging==23.1
+Pillow==10.0.0
+pipeline_utils==0.0.2
+torch==2.0.1
+torchvision==0.15.2
+tqdm==4.65.0
+transformers==4.32.0.dev0
+watermark==2.4.3
+xformers==0.0.20
