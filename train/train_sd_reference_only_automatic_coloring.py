@@ -385,11 +385,7 @@ def parse_args(input_args=None):
             "Number of subprocesses to use for data loading. 0 means that the data will be loaded in the main process."
         ),
     )
-    parser.add_argument(
-        "--dataset_map",
-        default=False,
-        action="store_true",
-    )
+
     parser.add_argument("--load_dataset_num_proc", type=int, default=None)
     parser.add_argument(
         "--adam_beta1",
@@ -511,6 +507,11 @@ def parse_args(input_args=None):
     )
     parser.add_argument(
         "--load_dataset_streaming",
+        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
+        "--dataset_map",
         default=False,
         action="store_true",
     )
@@ -750,7 +751,10 @@ def make_train_dataset(args, clip_image_processor, accelerator):
         else:
             if args.dataset_map:
                 train_dataset = dataset["train"].map(
-                    preprocess_train, batch_size=8, batched=True
+                    preprocess_train,
+                    batch_size=args.train_batch_size,
+                    batched=True,
+                    num_proc=args.load_dataset_num_proc,
                 )
             else:
                 train_dataset = dataset["train"].with_transform(preprocess_train)
