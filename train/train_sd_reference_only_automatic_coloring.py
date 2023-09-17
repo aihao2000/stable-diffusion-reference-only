@@ -759,29 +759,50 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             else:
                 train_dataset = dataset["train"].with_transform(preprocess_train)
 
-    return train_dataset
+    print(type(train_dataset[0]["pixel_values"]))
 
+    def collate_fn(examples):
+        pixel_values = torch.stack([torch.tensor(example["pixel_values"]) for example in examples])
+        pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
 
-def collate_fn(examples):
-    pixel_values = torch.stack([example["pixel_values"] for example in examples])
-    pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
+        blueprint_pixel_values = torch.stack(
+            [torch.tensor(example["blueprint_pixel_values"]) for example in examples]
+        )
+        blueprint_pixel_values = blueprint_pixel_values.to(
+            memory_format=torch.contiguous_format
+        ).float()
 
-    blueprint_pixel_values = torch.stack(
-        [example["blueprint_pixel_values"] for example in examples]
-    )
-    blueprint_pixel_values = blueprint_pixel_values.to(
-        memory_format=torch.contiguous_format
-    ).float()
+        prompt_pixel_values = torch.stack(
+            [torch.tensor(example["prompt_pixel_values"]) for example in examples]
+        )
 
-    prompt_pixel_values = torch.stack(
-        [example["prompt_pixel_values"] for example in examples]
-    )
+        return {
+            "pixel_values": pixel_values,
+            "blueprint_pixel_values": blueprint_pixel_values,
+            "prompt_pixel_values": prompt_pixel_values,
+        }
 
-    return {
-        "pixel_values": pixel_values,
-        "blueprint_pixel_values": blueprint_pixel_values,
-        "prompt_pixel_values": prompt_pixel_values,
-    }
+    if args.load_dataset_streaming:
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset,
+            collate_fn=collate_fn,
+            batch_size=args.train_batch_size,
+            num_workers=args.dataloader_num_workers,
+        )
+        dataset_len = 0
+        for _ in train_dataloader:
+            dataset_len += 1
+    else:
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset,
+            shuffle=True,
+            collate_fn=collate_fn,
+            batch_size=args.train_batch_size,
+            num_workers=args.dataloader_num_workers,
+        )
+        dataset_len = len(train_dataloader)
+
+    return train_dataset, train_dataloader
 
 
 def main(args):
@@ -985,27 +1006,9 @@ def main(args):
         eps=args.adam_epsilon,
     )
 
-    train_dataset = make_train_dataset(args, clip_image_processor, accelerator)
-
-    if args.load_dataset_streaming:
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset,
-            collate_fn=collate_fn,
-            batch_size=args.train_batch_size,
-            num_workers=args.dataloader_num_workers,
-        )
-        dataset_len = 0
-        for _ in train_dataloader:
-            dataset_len += 1
-    else:
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset,
-            shuffle=True,
-            collate_fn=collate_fn,
-            batch_size=args.train_batch_size,
-            num_workers=args.dataloader_num_workers,
-        )
-        dataset_len = len(train_dataloader)
+    train_dataset, train_dataloader = make_train_dataset(
+        args, clip_image_processor, accelerator
+    )
 
     # Scheduler and math around the number of training steps.
     overrode_max_train_steps = False

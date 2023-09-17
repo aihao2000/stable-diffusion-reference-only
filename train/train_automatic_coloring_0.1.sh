@@ -1,10 +1,12 @@
-accelerate launch --multi_gpu --mixed_precision=fp16 train/train_sd_reference_only_automatic_coloring.py \
+accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_only_automatic_coloring.py \
     --ddp_find_unused_parameters \
-    --pretrained_model_name_or_path='/home/aihao/workspace/DeepLearningContent/models/sd_reference_only/sd-2-1-init' \
+    --pretrained_model_name_or_path='/home/aihao/workspace/DeepLearningContent/models/sd_reference_only/init_0.1' \
     --dataset_name='/home/aihao/workspace/DeepLearningContent/datasets/characters' \
     --dataset_config_name='similar_pairs' \
     --train_data_dir='/home/aihao/workspace/DeepLearningContent/datasets/characters' \
-    --load_dataset_num_proc=8 \
+    --load_dataset_num_proc=32 \
+    --dataset_map \
+    --dataloader_num_workers=16 \
     --output_dir="/home/aihao/workspace/DeepLearningContent/models/sd_reference_only/automatic_coloring_0.1" \
     --tracker_project_name='automatic_coloring' \
     --train_batch_size=6 \
