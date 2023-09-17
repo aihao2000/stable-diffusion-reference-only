@@ -759,7 +759,6 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             else:
                 train_dataset = dataset["train"].with_transform(preprocess_train)
 
-    print(type(train_dataset[0]["pixel_values"]))
 
     def collate_fn(examples):
         pixel_values = torch.stack([torch.tensor(example["pixel_values"]) for example in examples])
@@ -789,9 +788,6 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             batch_size=args.train_batch_size,
             num_workers=args.dataloader_num_workers,
         )
-        dataset_len = 0
-        for _ in train_dataloader:
-            dataset_len += 1
     else:
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset,
@@ -800,7 +796,6 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             batch_size=args.train_batch_size,
             num_workers=args.dataloader_num_workers,
         )
-        dataset_len = len(train_dataloader)
 
     return train_dataset, train_dataloader
 
