@@ -121,9 +121,9 @@ def log_validation(
     image_logs = []
 
     for prompt_path, blueprint_path in zip(prompt_paths, blueprint_paths):
-        blueprint = Image.open(blueprint_path).convert("RGB").resize((1024, 1024))
+        blueprint = Image.open(blueprint_path).convert("RGB").resize((args.resolution, args.resolution))
         blueprint = Image.eval(blueprint, lambda x: 255 - x)
-        prompt = Image.open(prompt_path).convert("RGB").resize((1024, 1024))
+        prompt = Image.open(prompt_path).convert("RGB").resize((args.resolution, args.resolution))
         images = []
 
         for _ in range(args.num_validation_images):
