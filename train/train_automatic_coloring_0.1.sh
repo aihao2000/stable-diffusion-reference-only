@@ -6,11 +6,11 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --train_data_dir='/home/aihao/workspace/DeepLearningContent/datasets/characters' \
     --load_dataset_num_proc=32 \
     --dataset_map \
-    --dataloader_num_workers=16 \
+    --dataloader_num_workers=8 \
     --output_dir="/home/aihao/workspace/DeepLearningContent/models/sd_reference_only/automatic_coloring_0.1" \
     --tracker_project_name='automatic_coloring' \
     --train_batch_size=6 \
-    --max_train_steps=500000 \
+    --max_train_steps=600000 \
     --learning_rate=1e-5 \
     --checkpointing_steps=1000 \
     --validation_steps=1000 \
