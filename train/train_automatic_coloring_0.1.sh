@@ -7,11 +7,11 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --load_dataset_num_proc=32 \
     --dataset_map \
     --dataloader_num_workers=8 \
-    --output_dir="/home/aihao/workspace/DeepLearningContent/models/sd_reference_only/automatic_coloring_0.1" \
+    --output_dir="/home/aihao/workspace/DeepLearningContent/models/sd_reference_only/automatic_coloring_0.1.1" \
     --tracker_project_name='automatic_coloring' \
     --train_batch_size=6 \
-    --max_train_steps=600000 \
-    --learning_rate=1e-5 \
+    --max_train_steps=200000 \
+    --learning_rate=5e-5 \
     --checkpointing_steps=1000 \
     --validation_steps=1000 \
     --validation_prompt "validation_images/1/1.png" "validation_images/2/1.png" "validation_images/3/1.png" "validation_images/4/1.png" \
@@ -22,4 +22,4 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --mixed_precision=fp16 \
     --train_image_encoder \
     --resolution=256 \
-    --resume_from_checkpoint="latest"
+    # --resume_from_checkpoint="latest"
