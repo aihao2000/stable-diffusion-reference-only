@@ -529,6 +529,11 @@ def parse_args(input_args=None):
         action="store_true",
     )
     parser.add_argument(
+        "--dataset_map_batch_size",
+        type=int,
+        default=1000,
+    )
+    parser.add_argument(
         "--dataset_map_writer_batch_size",
         type=int,
         default=10000,
@@ -751,9 +756,7 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             if args.dataset_map:
                 train_dataset = dataset["train"].map(
                     preprocess_train,
-                    batch_size=args.train_batch_size
-                    * accelerator.num_processes
-                    * args.gradient_accumulation_steps,
+                    batch_size=args.dataset_map_batch_size,
                     batched=True,
                     num_proc=args.load_dataset_num_proc,
                     writer_batch_size=args.dataset_map_writer_batch_size,
