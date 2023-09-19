@@ -2,6 +2,7 @@
 # coding=utf-8
 
 import argparse
+import enum
 import logging
 import math
 import os
@@ -156,7 +157,7 @@ def log_validation(
 
     for tracker in accelerator.trackers:
         if tracker.name == "tensorboard":
-            for log in image_logs:
+            for i,log in enumerate(image_logs):
                 images = log["images"]
                 prompt = log["prompt"]
                 blueprint = log["blueprint"]
@@ -172,7 +173,7 @@ def log_validation(
                 formatted_images = np.stack(formatted_images)
 
                 tracker.writer.add_images(
-                    "", formatted_images, step, dataformats="NHWC"
+                    str(i), formatted_images, step, dataformats="NHWC"
                 )
         elif tracker.name == "wandb":
             formatted_images = []
