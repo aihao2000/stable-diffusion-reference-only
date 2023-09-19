@@ -127,7 +127,6 @@ def log_validation(
             .convert("RGB")
             .resize((args.resolution, args.resolution))
         )
-        blueprint = Image.eval(blueprint, lambda x: 255 - x)
         prompt = (
             Image.open(prompt_path)
             .convert("RGB")
