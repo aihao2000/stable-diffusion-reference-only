@@ -38,7 +38,7 @@ from diffusers.utils import is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
 import cv2
 import sys
-import controlnet_aux
+from controlnet_aux.processor import Processor as controlnet_aux_processor
 
 sys.path.append("src")
 from stable_diffusion_reference_only.pipelines.stable_diffusion_reference_only_pipeline import (
@@ -506,6 +506,11 @@ def parse_args(input_args=None):
         help="The config of the Dataset, leave as None if there's only one config.",
     )
     parser.add_argument(
+        "controlnet_aux_processor_id",
+        type=str,
+        default="lineart_anime"
+    )
+    parser.add_argument(
         "--train_data_dir",
         type=str,
         default=None,
@@ -710,14 +715,14 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             transforms.ToTensor(),
         ]
     )
-    open_pose_processor = controlnet_aux.processor.Processor("openpose")
+    blueprint_processor = controlnet_aux_processor(args.controlnet_aux_processor_id)
 
     def preprocess_train(examples):
         images = [image.convert("RGB") for image in examples[image_column]]
         images = [image_transforms(image) for image in images]
 
         blueprints = [blueprint.convert("RGB") for blueprint in examples[image_column]]
-        blueprints = [open_pose_processor(blueprint) for blueprint in blueprints]
+        blueprints = [blueprint_processor(blueprint) for blueprint in blueprints]
         blueprints = [blueprint_transforms(blueprint) for blueprint in blueprints]
         prompts = [
             clip_image_processor(prompt, return_tensors="pt").pixel_values[0]
