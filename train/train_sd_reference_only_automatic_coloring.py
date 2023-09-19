@@ -121,9 +121,17 @@ def log_validation(
     image_logs = []
 
     for prompt_path, blueprint_path in zip(prompt_paths, blueprint_paths):
-        blueprint = Image.open(blueprint_path).convert("RGB").resize((args.resolution, args.resolution))
+        blueprint = (
+            Image.open(blueprint_path)
+            .convert("RGB")
+            .resize((args.resolution, args.resolution))
+        )
         blueprint = Image.eval(blueprint, lambda x: 255 - x)
-        prompt = Image.open(prompt_path).convert("RGB").resize((args.resolution, args.resolution))
+        prompt = (
+            Image.open(prompt_path)
+            .convert("RGB")
+            .resize((args.resolution, args.resolution))
+        )
         images = []
 
         for _ in range(args.num_validation_images):
@@ -184,7 +192,9 @@ def log_validation(
         else:
             logger.warn(f"image logging not implemented for {tracker.name}")
 
-        return image_logs
+    del pipeline
+    torch.cuda.empty_cache()
+    return image_logs
 
 
 def save_model_card(repo_id: str, image_logs=None, base_model=str, repo_folder=None):
@@ -759,9 +769,10 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             else:
                 train_dataset = dataset["train"].with_transform(preprocess_train)
 
-
     def collate_fn(examples):
-        pixel_values = torch.stack([torch.tensor(example["pixel_values"]) for example in examples])
+        pixel_values = torch.stack(
+            [torch.tensor(example["pixel_values"]) for example in examples]
+        )
         pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
 
         blueprint_pixel_values = torch.stack(
