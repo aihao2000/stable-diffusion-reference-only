@@ -157,7 +157,7 @@ def log_validation(
 
     for tracker in accelerator.trackers:
         if tracker.name == "tensorboard":
-            for i,log in enumerate(image_logs):
+            for i, log in enumerate(image_logs):
                 images = log["images"]
                 prompt = log["prompt"]
                 blueprint = log["blueprint"]
