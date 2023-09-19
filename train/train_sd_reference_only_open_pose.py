@@ -718,9 +718,6 @@ def make_train_dataset(args, clip_image_processor, accelerator):
 
         blueprints = [blueprint.convert("RGB") for blueprint in examples[image_column]]
         blueprints = [open_pose_processor(blueprint) for blueprint in blueprints]
-        blueprints = [
-            Image.eval(blueprint, lambda x: 255 - x) for blueprint in blueprints
-        ]
         blueprints = [blueprint_transforms(blueprint) for blueprint in blueprints]
         prompts = [
             clip_image_processor(prompt, return_tensors="pt").pixel_values[0]
