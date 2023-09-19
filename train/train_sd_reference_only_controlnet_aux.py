@@ -506,7 +506,7 @@ def parse_args(input_args=None):
         help="The config of the Dataset, leave as None if there's only one config.",
     )
     parser.add_argument(
-        "controlnet_aux_processor_id",
+        "--controlnet_aux_processor_id",
         type=str,
         default="lineart_anime"
     )
