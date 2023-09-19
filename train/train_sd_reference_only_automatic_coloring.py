@@ -813,7 +813,7 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             train_dataset,
             shuffle=True,
             collate_fn=collate_fn,
-            batch_size=args.train_batch_size * 4 * args.gradient_accumulation_steps,
+            batch_size=args.train_batch_size,
             num_workers=args.dataloader_num_workers,
         )
 
