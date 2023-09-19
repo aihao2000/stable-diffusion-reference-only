@@ -506,9 +506,7 @@ def parse_args(input_args=None):
         help="The config of the Dataset, leave as None if there's only one config.",
     )
     parser.add_argument(
-        "--controlnet_aux_processor_id",
-        type=str,
-        default="lineart_anime"
+        "--controlnet_aux_processor_id", type=str, default="lineart_anime"
     )
     parser.add_argument(
         "--train_data_dir",
@@ -762,6 +760,7 @@ def make_train_dataset(args, clip_image_processor, accelerator):
                 )
             else:
                 train_dataset = dataset["train"].with_transform(preprocess_train)
+    del blueprint_processor
 
     def collate_fn(examples):
         pixel_values = torch.stack(
