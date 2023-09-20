@@ -812,6 +812,9 @@ def make_train_dataset(args, clip_image_processor, accelerator):
                 for example in examples
             ]
         )
+        prompt_pixel_values = prompt_pixel_values.to(
+            memory_format=torch.contiguous_format
+        ).float()
 
         return {
             "pixel_values": pixel_values,
