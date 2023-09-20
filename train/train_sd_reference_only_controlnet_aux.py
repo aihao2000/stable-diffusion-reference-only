@@ -767,19 +767,34 @@ def make_train_dataset(args, clip_image_processor, accelerator):
 
     def collate_fn(examples):
         pixel_values = torch.stack(
-            [torch.tensor(example["pixel_values"]) for example in examples]
+            [
+                torch.tensor(example["pixel_values"])
+                if isinstance(example["pixel_values"], list)
+                else example["pixel_values"]
+                for example in examples
+            ]
         )
         pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
 
         blueprint_pixel_values = torch.stack(
-            [torch.tensor(example["blueprint_pixel_values"]) for example in examples]
+            [
+                torch.tensor(example["blueprint_pixel_values"])
+                if isinstance(example["blueprint_pixel_values"], list)
+                else example["blueprint_pixel_values"]
+                for example in examples
+            ]
         )
         blueprint_pixel_values = blueprint_pixel_values.to(
             memory_format=torch.contiguous_format
         ).float()
 
         prompt_pixel_values = torch.stack(
-            [torch.tensor(example["prompt_pixel_values"]) for example in examples]
+            [
+                torch.tensor(example["prompt_pixel_values"])
+                if isinstance(example["prompt_pixel_values"], list)
+                else example["prompt_pixel_values"]
+                for example in examples
+            ]
         )
 
         return {
