@@ -761,9 +761,10 @@ def make_train_dataset(args, clip_image_processor, accelerator):
                     num_proc=args.load_dataset_num_proc,
                     writer_batch_size=args.dataset_map_writer_batch_size,
                 )
+                del blueprint_processor
             else:
                 train_dataset = dataset["train"].with_transform(preprocess_train)
-    del blueprint_processor
+    
 
     def collate_fn(examples):
         pixel_values = torch.stack(
