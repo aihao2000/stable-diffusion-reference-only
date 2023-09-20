@@ -1,17 +1,18 @@
-accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_only_controlnet_aux.py \
+accelerate launch --mixed_precision=fp16 --num_processes=1 train/train_sd_reference_only_controlnet_aux.py \
     --ddp_find_unused_parameters \
     --controlnet_aux_processor_id="scribble_hed" \
-    --pretrained_model_name_or_path='/data/aihao/workspace/DeepLearningContent/models/sd_reference_only/init_0.1' \
-    --dataset_name='/data/aihao/workspace/DeepLearningContent/datasets/characters' \
+    --pretrained_model_name_or_path='/home/aihao/workspace/DeepLearningContent/models/sd_reference_only/init_0.1' \
+    --dataset_name='/home/aihao/workspace/DeepLearningContent/datasets/characters' \
     --dataset_config_name='similar_pairs' \
-    --train_data_dir='/data/aihao/workspace/DeepLearningContent/datasets/characters' \
-    --load_dataset_num_proc=48 \
+    --train_data_dir='/home/aihao/workspace/DeepLearningContent/datasets/characters' \
+    --load_dataset_num_proc=16 \
     --dataset_map \
-    --dataloader_num_workers=12 \
-    --output_dir="/data/aihao/workspace/DeepLearningContent/models/sd_reference_only/scribble_hed_0.1.1" \
+    --dataset_map_batch_size=50 \
+    --dataloader_num_workers=8 \
+    --output_dir="/home/aihao/workspace/DeepLearningContent/models/sd_reference_only/scribble_hed_0.1.1" \
     --tracker_project_name='scribble_hed' \
-    --report_to="tensorboard" \
-    --train_batch_size=25 \
+    --report_to="wandb" \
+    --train_batch_size=6 \
     --max_train_steps=200000 \
     --learning_rate=5e-5 \
     --checkpointing_steps=1000 \
