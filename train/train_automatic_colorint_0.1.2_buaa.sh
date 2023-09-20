@@ -1,6 +1,6 @@
 accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_only_automatic_coloring.py \
     --ddp_find_unused_parameters \
-    --pretrained_model_name_or_path='/data/aihao/workspace/DeepLearningContent/models/sd_reference_only/init_0.1' \
+    --pretrained_model_name_or_path='/data/aihao/workspace/DeepLearningContent/models/sd_reference_only/automatic_coloring_0.1.1' \
     --dataset_name='/data/aihao/workspace/DeepLearningContent/datasets/characters' \
     --dataset_config_name='similar_pairs' \
     --train_data_dir='/data/aihao/workspace/DeepLearningContent/datasets/characters' \
@@ -8,10 +8,10 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --dataset_map \
     --dataset_map_batch_size=100 \
     --dataloader_num_workers=12 \
-    --output_dir="/data/aihao/workspace/DeepLearningContent/models/sd_reference_only/automatic_coloring_0.1.1" \
+    --output_dir="/data/aihao/workspace/DeepLearningContent/models/sd_reference_only/automatic_coloring_0.1.2" \
     --tracker_project_name='automatic_coloring' \
     --report_to="tensorboard" \
-    --train_batch_size=25 \
+    --train_batch_size=12 \
     --max_train_steps=200000 \
     --learning_rate=5e-5 \
     --checkpointing_steps=1000 \
@@ -23,5 +23,5 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --seed 2221101 \
     --mixed_precision=fp16 \
     --train_image_encoder \
-    --resolution=256
+    --resolution=512
 # --resume_from_checkpoint="latest"
