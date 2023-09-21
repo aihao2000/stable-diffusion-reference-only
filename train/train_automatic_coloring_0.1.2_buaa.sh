@@ -22,6 +22,4 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --mixed_precision=fp16 \
     --train_image_encoder \
     --resolution=512 \
-    # --dataset_map \
-    # --dataset_map_batch_size=100 \
-# --resume_from_checkpoint="latest"
+    --resume_from_checkpoint="latest"
