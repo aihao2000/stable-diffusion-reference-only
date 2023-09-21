@@ -5,8 +5,6 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --dataset_config_name='similar_pairs' \
     --train_data_dir='/data/aihao/workspace/DeepLearningContent/datasets/characters' \
     --load_dataset_num_proc=48 \
-    --dataset_map \
-    --dataset_map_batch_size=100 \
     --dataloader_num_workers=12 \
     --output_dir="/data/aihao/workspace/DeepLearningContent/models/sd_reference_only/automatic_coloring_0.1.1" \
     --tracker_project_name='automatic_coloring' \
