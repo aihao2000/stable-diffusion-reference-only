@@ -193,8 +193,13 @@ def log_validation(
         else:
             logger.warn(f"image logging not implemented for {tracker.name}")
 
+    for i,log in enumerate(image_logs):
+        for j, image in enumerate(log["images"]):
+            image.save(os.path.join(args.output_dir, "validations" f"{step}_{i}_{j}.png"))
+
     del pipeline
     torch.cuda.empty_cache()
+    
     return image_logs
 
 

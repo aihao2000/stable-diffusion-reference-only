@@ -192,8 +192,15 @@ def log_validation(
         else:
             logger.warn(f"image logging not implemented for {tracker.name}")
 
+    for i, log in enumerate(image_logs):
+        for j, image in enumerate(log["images"]):
+            image.save(
+                os.path.join(args.output_dir, "validations" f"{step}_{i}_{j}.png")
+            )
+
     del pipeline
     torch.cuda.empty_cache()
+
     return image_logs
 
 
@@ -764,7 +771,6 @@ def make_train_dataset(args, clip_image_processor, accelerator):
                 del blueprint_processor
             else:
                 train_dataset = dataset["train"].with_transform(preprocess_train)
-    
 
     def collate_fn(examples):
         pixel_values = torch.stack(
@@ -797,7 +803,7 @@ def make_train_dataset(args, clip_image_processor, accelerator):
                 for example in examples
             ]
         )
-        prompt_pixel_values=prompt_pixel_values.to(
+        prompt_pixel_values = prompt_pixel_values.to(
             memory_format=torch.contiguous_format
         ).float()
 
