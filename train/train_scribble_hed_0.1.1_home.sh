@@ -1,4 +1,4 @@
-accelerate launch --mixed_precision=fp16 --num_processes=1 train/train_sd_reference_only_controlnet_aux.py \
+accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_only_controlnet_aux.py \
     --ddp_find_unused_parameters \
     --controlnet_aux_processor_id="scribble_hed" \
     --pretrained_model_name_or_path='/home/aihao/workspace/DeepLearningContent/models/sd_reference_only/init_0.1' \
@@ -6,15 +6,15 @@ accelerate launch --mixed_precision=fp16 --num_processes=1 train/train_sd_refere
     --dataset_config_name='similar_pairs' \
     --train_data_dir='/home/aihao/workspace/DeepLearningContent/datasets/characters' \
     --load_dataset_num_proc=16 \
-    --dataset_map \
-    --dataset_map_batch_size=50 \
     --dataloader_num_workers=8 \
     --output_dir="/home/aihao/workspace/DeepLearningContent/models/sd_reference_only/scribble_hed_0.1.1" \
     --tracker_project_name='scribble_hed' \
     --report_to="wandb" \
     --train_batch_size=6 \
     --max_train_steps=200000 \
-    --learning_rate=5e-5 \
+    --lr_scheduler="constant_with_warmup" \
+    --lr_warmup_steps=10000 \
+    --learning_rate=1e-4 \
     --checkpointing_steps=1000 \
     --validation_steps=1000 \
     --validation_prompt "validation_images/1/1_capture.png" "validation_images/2/1_capture.png" "validation_images/3/1_capture.png" "validation_images/4/1_capture.png" \
@@ -24,5 +24,5 @@ accelerate launch --mixed_precision=fp16 --num_processes=1 train/train_sd_refere
     --seed 2221101 \
     --mixed_precision=fp16 \
     --train_image_encoder \
-    --resolution=256
-# --resume_from_checkpoint="latest"
+    --resolution=256 \
+    --resume_from_checkpoint="latest"
