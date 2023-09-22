@@ -14,7 +14,7 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --max_train_steps=200000 \
     --lr_scheduler="constant_with_warmup" \
     --lr_warmup_steps=10000 \
-    --learning_rate=1e-4 \
+    --learning_rate=6e-7 \
     --checkpointing_steps=1000 \
     --validation_steps=1000 \
     --validation_prompt "validation_images/1/1_capture.png" "validation_images/2/1_capture.png" "validation_images/3/1_capture.png" "validation_images/4/1_capture.png" \
