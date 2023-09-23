@@ -195,7 +195,7 @@ def log_validation(
     for i, log in enumerate(image_logs):
         for j, image in enumerate(log["images"]):
             image.save(
-                os.path.join(args.output_dir, "validations" f"{step}_{i}_{j}.png")
+                os.path.join(args.output_dir, "validations", f"{step}_{i}_{j}.png")
             )
 
     del pipeline
