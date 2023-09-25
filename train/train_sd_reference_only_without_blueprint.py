@@ -1115,7 +1115,7 @@ def main(args):
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:
         unet = accelerator.unwrap_model(unet)
-        image_encoder = accelerator.unwrap_mode(image_encoder)
+        image_encoder = accelerator.unwrap_model(image_encoder)
         pipeline = StableDiffusionReferenceOnlyWithoutBlueprintipeline.from_pretrained(
             args.pretrained_model_name_or_path,
             vae=vae,
