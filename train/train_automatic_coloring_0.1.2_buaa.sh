@@ -9,7 +9,7 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --output_dir="/data/aihao/workspace/DeepLearningContent/models/sd_reference_only/automatic_coloring_0.1.2" \
     --tracker_project_name='automatic_coloring' \
     --report_to="tensorboard" \
-    --train_batch_size=25 \
+    --train_batch_size=10 \
     --max_train_steps=100000 \
     --learning_rate=2e-6 \
     --lr_scheduler="constant_with_warmup" \
@@ -23,4 +23,6 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --seed 2221101 \
     --mixed_precision=fp16 \
     --train_image_encoder \
-    --resolution=256
+    --resolution=512 \
+    --resume_from_checkpoint='latest'
+
