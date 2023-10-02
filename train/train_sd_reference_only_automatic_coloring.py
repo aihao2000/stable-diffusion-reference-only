@@ -2,7 +2,6 @@
 # coding=utf-8
 
 import argparse
-import enum
 import logging
 import math
 import os
