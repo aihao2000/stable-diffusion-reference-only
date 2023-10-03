@@ -1,5 +1,4 @@
 accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_only_automatic_coloring.py \
-    --ddp_find_unused_parameters \
     --pretrained_model_name_or_path='/data/aihao/workspace/DeepLearningContent/models/sd_reference_only/automatic_coloring_0.1.1' \
     --dataset_name='/data/aihao/workspace/DeepLearningContent/datasets/characters' \
     --dataset_config_name='similar_pairs' \
@@ -9,8 +8,8 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --output_dir="/data/aihao/workspace/DeepLearningContent/models/sd_reference_only/automatic_coloring_0.1.2" \
     --tracker_project_name='automatic_coloring' \
     --report_to="tensorboard" \
-    --train_batch_size=10 \
-    --max_train_steps=100000 \
+    --train_batch_size=20 \
+    --max_train_steps=850000 \
     --learning_rate=2e-6 \
     --lr_scheduler="constant_with_warmup" \
     --lr_warmup_steps=10000 \
@@ -20,6 +19,7 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --validation_blueprint "validation_images/1/2_line.png" "validation_images/2/2_line.png" "validation_images/3/2_line.png" "validation_images/4/2_line.png" \
     --use_8bit_adam \
     --enable_xformers_memory_efficient_attention \
+    --gradient_checkpointing \
     --seed 2221101 \
     --mixed_precision=fp16 \
     --train_image_encoder \
