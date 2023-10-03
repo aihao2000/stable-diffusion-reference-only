@@ -962,6 +962,7 @@ def main(args):
     unet.requires_grad_(True)
     if args.train_image_encoder:
         image_encoder.requires_grad_(True)
+        image_encoder.vision_model.post_layernorm.requires_grad_(False)
     else:
         image_encoder.requires_grad_(False)
 
