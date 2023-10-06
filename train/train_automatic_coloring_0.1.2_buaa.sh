@@ -15,8 +15,8 @@ accelerate launch --mixed_precision=fp16 --multi_gpu train/train_sd_reference_on
     --lr_warmup_steps=10000 \
     --checkpointing_steps=1000 \
     --validation_steps=1000 \
-    --validation_prompt "validation_images/1/1_capture.png" "validation_images/2/1_capture.png" "validation_images/3/1_capture.png" "validation_images/4/1_capture.png" \
-    --validation_blueprint "validation_images/1/2_line.png" "validation_images/2/2_line.png" "validation_images/3/2_line.png" "validation_images/4/2_line.png" \
+    --validation_prompt    "validation_images/1/1_capture.png" "validation_images/2/1_capture.png" "validation_images/3/1_capture.png" "validation_images/4/1_capture.png"  "validation_images/6/1_capture.png" "validation_images/7/1_capture.png"\
+    --validation_blueprint "validation_images/1/2_line.png"    "validation_images/2/2_line.png"    "validation_images/3/2_line.png"    "validation_images/4/2_line.png"     "validation_images/6/2_line.png"    "validation_images/7/2_line.png"\
     --use_8bit_adam \
     --enable_xformers_memory_efficient_attention \
     --gradient_checkpointing \
