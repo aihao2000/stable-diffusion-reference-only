@@ -141,7 +141,6 @@ def log_validation(
                     blueprint=blueprint,
                     num_inference_steps=20,
                     generator=generator,
-                    train_image_encoder=args.train_image_encoder,
                 ).images[0]
 
             images.append(image)
@@ -878,7 +877,7 @@ def main(args):
     if accelerator.is_main_process:
         if args.output_dir is not None:
             os.makedirs(args.output_dir, exist_ok=True)
-            os.makedirs(os.path.join(args.output_dir, "validations"),exist_ok=True)
+            os.makedirs(os.path.join(args.output_dir, "validations"), exist_ok=True)
 
         if args.push_to_hub:
             repo_id = create_repo(

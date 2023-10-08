@@ -141,7 +141,6 @@ def log_validation(
                     blueprint=blueprint,
                     num_inference_steps=20,
                     generator=generator,
-                    train_image_encoder=args.train_image_encoder,
                 ).images[0]
 
             images.append(image)

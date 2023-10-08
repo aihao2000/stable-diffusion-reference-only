@@ -37,35 +37,6 @@ from ..models.unet_2d_dobule_condition import UNet2DDobuleConditionModel
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-def preprocess(image):
-    warnings.warn(
-        "The preprocess method is deprecated and will be removed in a future version. Please"
-        " use VaeImageProcessor.preprocess instead",
-        FutureWarning,
-    )
-    if isinstance(image, torch.Tensor):
-        return image
-    elif isinstance(image, PIL.Image.Image):
-        image = [image]
-
-    if isinstance(image[0], PIL.Image.Image):
-        w, h = image[0].size
-        w, h = (x - x % 8 for x in (w, h))  # resize to integer multiple of 8
-
-        image = [
-            np.array(i.resize((w, h), resample=PIL_INTERPOLATION["lanczos"]))[None, :]
-            for i in image
-        ]
-        image = np.concatenate(image, axis=0)
-        image = np.array(image).astype(np.float32) / 255.0
-        image = image.transpose(0, 3, 1, 2)
-        image = 2.0 * image - 1.0
-        image = torch.from_numpy(image)
-    elif isinstance(image[0], torch.Tensor):
-        image = torch.cat(image, dim=0)
-    return image
-
-
 class StableDiffusionReferenceOnlyPipeline(
     DiffusionPipeline, LoraLoaderMixin, FromSingleFileMixin
 ):
@@ -76,7 +47,6 @@ class StableDiffusionReferenceOnlyPipeline(
         clip_image_processor: CLIPImageProcessor,
         unet: UNet2DDobuleConditionModel,
         scheduler: KarrasDiffusionSchedulers,
-        train_image_encoder=False,
     ):
         """ """
         super().__init__()
@@ -160,7 +130,6 @@ class StableDiffusionReferenceOnlyPipeline(
             do_convert_rgb=True,
             do_normalize=False,
         )
-        self.train_image_encoder = train_image_encoder
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.enable_model_cpu_offload
     def enable_model_cpu_offload(self, gpu_id=0):
@@ -205,7 +174,6 @@ class StableDiffusionReferenceOnlyPipeline(
         num_images_per_prompt,
         prompt_embeds: Optional[torch.FloatTensor] = None,
         lora_scale: Optional[float] = None,
-        train_image_encoder=False,
     ):
         # set lora scale so that monkey patched LoRA
         # function of text encoder can correctly access it
@@ -225,14 +193,9 @@ class StableDiffusionReferenceOnlyPipeline(
                 return_tensors="pt",
             ).pixel_values
 
-            if train_image_encoder:
-                prompt_embeds = self.image_encoder(
-                    pixel_values.to(device),
-                ).last_hidden_state
-            else:
-                prompt_embeds = self.image_encoder(
-                    pixel_values.to(device), output_hidden_states=True
-                ).hidden_states[-2]
+            prompt_embeds = self.image_encoder(
+                pixel_values.to(device),
+            ).last_hidden_state
 
         if self.image_encoder is not None:
             prompt_embeds_dtype = self.image_encoder.dtype
@@ -429,7 +392,6 @@ class StableDiffusionReferenceOnlyPipeline(
         guess_mode: bool = False,
         global_pool_conditions=False,
         latents: Optional[torch.FloatTensor] = None,
-        train_image_encoder=False,
     ):
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
@@ -465,7 +427,6 @@ class StableDiffusionReferenceOnlyPipeline(
             num_images_per_prompt=num_images_per_prompt,
             prompt_embeds=prompt_embeds,
             lora_scale=image_encoder_lora_scale,
-            train_image_encoder=train_image_encoder,
         )
 
         # 4. Preprocess image
