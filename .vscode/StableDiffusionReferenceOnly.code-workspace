@@ -14,6 +14,9 @@
 		},
 		{
 			"path": "../../anime_segmentation"
+		},
+		{
+			"path": "../../../.cache/huggingface"
 		}
 	],
 	"settings": {
