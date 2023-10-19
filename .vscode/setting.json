@@ -5,13 +5,16 @@
   "python.formatting.provider": "black",
   "explorer.excludeGitIgnore": false,
   "python.analysis.autoSearchPaths": true,
-  "python.analysis.exclude": ["**/datasets", "**/models"],
+  "python.analysis.exclude": [
+    "**/datasets",
+    "**/models"
+  ],
   "python.analysis.include": [
     "/home/aihao/workspace/ImageRetrieval",
-    "/home/aihao/workspace/StableDiffusionJointControl"
+    "/home/aihao/workspace/StableDiffusionReferenceOnly"
   ],
   "python.autoComplete.extraPaths": [
     "/home/aihao/workspace/ImageRetrieval/ImageRetrievalSystem",
-    "/home/aihao/workspace/StableDiffusionJointControl/src"
+    "/home/aihao/workspace/StableDiffusionReferenceOnly/src"
   ]
 }
