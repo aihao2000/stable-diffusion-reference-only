@@ -285,7 +285,7 @@ class StableDiffusionReferenceOnlyPipeline(
             not isinstance(prompt, Image.Image) and not isinstance(prompt, list)
         ):
             raise ValueError(
-                f"`prompt` has to be of type `str` or `list` but is {type(prompt)}"
+                f"`prompt` has to be of type `PIL.Image` or `list` but is {type(prompt)}"
             )
 
     def get_timesteps(self, num_inference_steps, strength, device):
