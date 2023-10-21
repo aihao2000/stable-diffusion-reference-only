@@ -10,10 +10,10 @@
 			"path": "../../diffusers"
 		},
 		{
-			"path": "../../ImageRetrieval"
+			"path": "../../image-retriever"
 		},
 		{
-			"path": "../../anime_segmentation"
+			"path": "../../anime-segmentation"
 		},
 		{
 			"path": "../../../.cache/huggingface"
