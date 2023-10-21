@@ -11,7 +11,7 @@ setup(
     license="Apache",
     author="aihao",
     author_email="aihao2000@outlook.com",
-    url="https://github.com/aihao2000/StableDiffusionReferenceOnly",
+    url="https://github.com/aihao2000/stable-diffusion-reference-only",
     package_dir={"": "src"},
     packages=find_packages("src"),
     python_requires=">=3.8.0",
