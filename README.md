@@ -20,7 +20,7 @@ Try it On [![**Stable Diffusion Reference Only Demo**](https://colab.research.go
 
 ## More Examples
 
-| input                              | input:                                | output                             |
+| input                              | input                                 | output                             |
 | ---------------------------------- | ------------------------------------- | ---------------------------------- |
 | ![](./README.assets/1_prompt.png)  | ![](./README.assets/1_blueprint.png)  | ![](./README.assets/1_result.png)  |
 | ![](./README.assets/12_prompt.png) | ![](./README.assets/12_blueprint.png) | ![](./README.assets/12_result.png) |
