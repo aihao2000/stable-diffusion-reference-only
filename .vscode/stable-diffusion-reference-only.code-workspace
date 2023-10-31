@@ -19,7 +19,7 @@
 			"path": "../../../.cache/huggingface"
 		},
 		{
-			"path": "../../StableDiffusionReferenceOnlyApp"
+			"path": "../../anime-fanwork"
 		}
 	],
 	"settings": {
@@ -34,12 +34,12 @@
 			"**/data"
 		],
 		"python.analysis.include": [
-			"/home/aihao/workspace/ImageRetrieval",
-			"/home/aihao/workspace/StableDiffusionReferenceOnly"
+			"/home/aihao/workspace/image-retriever",
+			"/home/aihao/workspace/stable-diffusion-reference-only"
 		],
 		"python.autoComplete.extraPaths": [
-			"/home/aihao/workspace/ImageRetrieval/ImageRetrievalSystem",
-			"/home/aihao/workspace/StableDiffusionReferenceOnly"
+			"/home/aihao/workspace/image-retriever",
+			"/home/aihao/workspace/stable-diffusion-reference-only"
 		]
 	}
 }
