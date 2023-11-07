@@ -1,6 +1,6 @@
-# StableDiffusionImageReferenceOnly
+# Stable Diffusion Reference Only
 
-A general model for secondary creation.
+A general model for secondary painting.[![arXiv](https://camo.githubusercontent.com/9f865a7810c4ab8e0c379528b0cbf222348b44db84823c091f49d8a992462d2d/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f61725869762d323330362e31343638352d6233316231622e737667)](https://arxiv.org/abs/2311.02343)
 
 ![](./README.assets/9.png)
 
