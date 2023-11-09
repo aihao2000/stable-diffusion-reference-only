@@ -179,7 +179,7 @@ To train the model you can use [train/train_sd_reference_only_automatic_coloring
 
 The difference between [train_sd_reference_only_controlnet_aux.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/train/train_sd_reference_only_controlnet_aux.py) and it is that it uses the [controlnet preprocessor](https://github.com/patrickvonplaten/controlnet_aux) to process image2 as a blueprint for training, and has an additional parameter - controlnet_aux_processor_id to specify the type of blueprint.
 
-Finally, the specific parameters you may use are as follows:
+Next, the specific parameters you may use are as follows:
 
 - controlnet_aux_processor_id
 
@@ -216,8 +216,6 @@ Finally, the specific parameters you may use are as follows:
 - output_dir
 
 - tracker_project_name
-
-  Tracker project name.
 
 - report_to
 
