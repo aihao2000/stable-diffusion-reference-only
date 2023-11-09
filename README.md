@@ -112,7 +112,7 @@ Next, let’s use web ui for secondary creation.
 - If you expect to perform a style transfer task, you may not have a line art of the target character. You can upload a color drawing of the target character, click ```character segment``` to clear the background (optional), then click ```get line art``` to obtain the line art of the character, and finally click ```color inversion``` gets blueprint with black background and white lines.
 - If you are a professional artist doing secondary creation, you can directly upload the drawn line art to ```blueprint```, and you can still try to click ```get line art``` (recommended). It is slightly different from the line art drawn manually. The result is slightly different. Finally, click ```color inversion``` to get the final blueprint with black background and white lines.
 - Finally, click ```inference``` to generate a secondary creation diagram of the target character. According to tests, ```num_inference_steps``` of 20 can achieve good results. You can still try other parameters.
-- For the ```style transfer``` task, you can directly upload the color images of the two characters, and then click ```style transfer```, which will automatically execute ```character segment, get line art```, ```color inversion```, ```inference```.
+- For the ```style transfer``` task, you can directly upload the color images of the two characters, and then click ```style transfer```, which will automatically execute ```character segment```, ```get line art```, ```color inversion```, ```inference```.
 - For line art ```automatic coloring``` tasks, you can directly upload the reference character image to the manual line art, and then click ```automatic coloring```, which will automatically perform ```color inversion``` and ```inference```.
 
 #### Optional: Manually download switching models
@@ -145,13 +145,13 @@ Take the line art automatic coloring task as an example. If you want to perform 
 
 ### Prepare Dataset
 
-You need a dataset with similar characters labeled. datasets/datasets.py will be responsible for generating training data and transport it to the training script. datasets/datasets.py.
+You need a dataset with similar characters labeled. [datasets/datasets.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/dataset/dataset.py) will be responsible for generating training data and transport it to the training script.
 
-datasets.py requires a meta_data.json to mark similar data. You can refer to the sample format datasets/meta_data.json.
+datasets.py requires a [meta_data.json](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/dataset/meta_data.json) to mark similar data.
 
 Tip: You can use CLIP's image encoder to retrieve similar images on large datasets, or directly use existing or generated similar images.
 
-datasets.py will generate an object like this:
+[datasets.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/dataset/dataset.py) will generate an object like this:
 
 ```python
 {
@@ -165,11 +165,11 @@ datasets.py will generate an object like this:
 
 ### Train
 
-To train the model you can use train/train_sd_reference_only_automatic_coloring.py or train/train_sd_reference_only_controlnet_aux.py.
+To train the model you can use [train/train_sd_reference_only_automatic_coloring.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/train/train_sd_reference_only_automatic_coloring.py) or [train/train_sd_reference_only_controlnet_aux.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/train/train_sd_reference_only_controlnet_aux.py).
 
-train_sd_reference_only_automatic_coloring.py will use image1 as the reference image, use adaptive threshold to process image2 as blueprint, and use image2 as the desired generated image for noise addition and denoise.
+[train_sd_reference_only_automatic_coloring.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/train/train_sd_reference_only_automatic_coloring.py) will use image1 as the reference image, use adaptive threshold to process image2 as blueprint, and use image2 as the desired generated image for noise addition and denoise.
 
-The difference between train_sd_reference_only_controlnet_aux.py and it is that it uses the controlnet preprocessor to process image2 as a blueprint for training, and has an additional parameter - controlnet_aux_processor_id to specify the type of blueprint.
+The difference between [train_sd_reference_only_controlnet_aux.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/train/train_sd_reference_only_controlnet_aux.py) and it is that it uses the [controlnet preprocessor](https://github.com/patrickvonplaten/controlnet_aux) to process image2 as a blueprint for training, and has an additional parameter - controlnet_aux_processor_id to specify the type of blueprint.
 
 Finally, the specific parameters you may use are as follows:
 
@@ -183,7 +183,7 @@ Finally, the specific parameters you may use are as follows:
 
 - dataset_name
 
-  If your dataset is stored on huggingface hub, you can use the online dataset path: ```huggingface_user_name/dataset_name```, otherwise, please use the storage path of the local dataset, which should contain the dataset.py mentioned above.
+  If your dataset is stored on huggingface hub, you can use the online dataset path: ```huggingface_user_name/dataset_name```, otherwise, please use the storage path of the local dataset, which should contain the [dataset.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/dataset/dataset.py) mentioned above.
 
 - prompt_column
 
@@ -195,13 +195,11 @@ Finally, the specific parameters you may use are as follows:
 
 - dataset_config_name
 
-  The configuration name of the data set, generally choose "similar_pairs".
-
-  The configuration name of the data set is generally similar_pairs. In the past, I processed image2 in the dataset to get the blueprint, which was too time-consuming.
+  The configuration name of the data set is generally "similar_pairs". In the past, I processed image2 in the dataset.py to get the blueprint, which was too time-consuming.
 
 - train_data_dir
 
-  The storage path of the training data. dataset.py will use this path and connect it to the path in meta_data.json to read the image.
+  The storage path of the training data. [dataset.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/dataset/dataset.py) will use this path and connect it to the path in [meta_data.json](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/dataset/meta_data.json) to read the image.
 
 - load_dataset_num_proc
 
@@ -241,7 +239,7 @@ Finally, the specific parameters you may use are as follows:
 
 - seed
 
-Finally, run the training script, just like train/train_automatic_coloring_0.1.2_buaa.sh.
+Finally, run the training script, just like [train/train_automatic_coloring_0.1.2_buaa.sh](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/train/train_automatic_coloring_0.1.2_buaa.sh).
 
 ## More Examples
 
