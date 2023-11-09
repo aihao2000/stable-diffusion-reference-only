@@ -1,7 +1,8 @@
+gradio==3.48.0
+diffusers==0.21.0
 accelerate
 bitsandbytes
 datasets
-diffusers
 huggingface_hub
 numpy
 opencv_python
@@ -15,4 +16,5 @@ kornia
 timm
 pytorch-lightning
 scipy
-gradio
+git+https://github.com/aihao2000/stable-diffusion-reference-only.git
+git+https://github.com/aihao2000/anime-segmentation.git
