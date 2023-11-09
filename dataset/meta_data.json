@@ -1,0 +1,18 @@
+{
+    "data/train_example_image1.png": {
+        "similar_images": [
+            [
+                "data/train_example_image2.png",
+                90
+            ]
+        ]
+    },
+    "data/train_example_image2.png": {
+        "similar_images": [
+            [
+                "data/train_example_image1.png",
+                90
+            ]
+        ]
+    }
+}
