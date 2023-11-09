@@ -179,7 +179,7 @@ Finally, the specific parameters you may use are as follows:
 
 - pretrained_model_name_or_path
 
-  Path to store initial model。
+  Path to store initial model.
 
 - dataset_name
 
