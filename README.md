@@ -82,7 +82,7 @@ pip install git+https://github.com/aihao2000/anime-segmentation.git
 
 For usage examples, please refer to https://colab.research.google.com/drive/1aLKbm8YAXsGP2Y3umx0letLIY_rhl8VL?usp=sharing#scrollTo=p-a9SsZg3O93.
 
-### By Web-UI
+### By Independent Gradio Web UI
 
 A1111 stable diffusion Web UI is currently not supported. I will support it as soon as possible. If you want to use web UI, you can deploy a version similar to huggingface space locally.
 
@@ -138,6 +138,14 @@ automatic_coloring_pipeline = StableDiffusionReferenceOnlyPipeline.from_pretrain
 
 ).to(device)
 ```
+
+### By A1111 Stable Diffusion Web UI
+
+The current version, once installed, will automatically download the required model and load it into memory during the first run, occupying GPU resources.
+
+Input ```Extensions->Install from URL->URL for extension's git repository```: ```https://github.com/aihao2000/stable-diffusion-reference-only```
+
+Then click ```Install```,```Installed->Apply and restart UI```
 
 ## Train
 

@@ -197,7 +197,7 @@ def on_ui_tabs():
     return [
         (
             demo,
-            "Stable diffusioin Reference Only",
+            "Stable Diffusioin Reference Only",
             "stable_diffusion_reference_only_tab",
         )
     ]
