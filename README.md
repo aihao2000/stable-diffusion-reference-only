@@ -80,7 +80,7 @@ You may need to clear the background, you can install:
 pip install git+https://github.com/aihao2000/anime-segmentation.git
 ```
 
-For usage examples, please refer to https://colab.research.google.com/drive/1aLKbm8YAXsGP2Y3umx0letLIY_rhl8VL?usp=sharing#scrollTo=p-a9SsZg3O93.
+For usage examples, please refer to  [![**Stable Diffusion Reference Only Demo**](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1aLKbm8YAXsGP2Y3umx0letLIY_rhl8VL?usp=sharing).
 
 ### By Independent Gradio Web UI
 
@@ -108,7 +108,7 @@ python3 app.py
 Next, let’s use web ui for secondary creation.
 
 - Upload the colored character reference image to ```prompt```. If it contains a background and you do not want the background to be colored, you can click ```character segment``` to clear to enhance the effect.
-- Upload the target character line artto ```blueprint```.
+- Upload the target character line art to ```blueprint```.
 - If you expect to perform a style transfer task, you may not have a line art of the target character. You can upload a color drawing of the target character, click ```character segment``` to clear the background (optional), then click ```get line art``` to obtain the line art of the character, and finally click ```color inversion``` gets blueprint with black background and white lines.
 - If you are a professional artist doing secondary creation, you can directly upload the drawn line art to ```blueprint```, and you can still try to click ```get line art``` (recommended). It is slightly different from the line art drawn manually. The result is slightly different. Finally, click ```color inversion``` to get the final blueprint with black background and white lines.
 - Finally, click ```inference``` to generate a secondary creation diagram of the target character. According to tests, ```num_inference_steps``` of 20 can achieve good results. You can still try other parameters.
@@ -149,7 +149,7 @@ Then click ```Install```,```Installed->Apply and restart UI```
 
 ## Train
 
-Take the line art automatic coloring task as an example. If you want to perform other tasks, you can refer to and modify https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/train/train_sd_reference_only_automatic_coloring.py.
+Take the line art automatic coloring task as an example. If you want to perform other tasks, you can refer to and modify [train/train_sd_reference_only_automatic_coloring.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/train/train_sd_reference_only_automatic_coloring.py).
 
 ### Prepare Dataset
 
