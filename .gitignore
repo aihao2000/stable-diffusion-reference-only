@@ -161,3 +161,4 @@ cython_debug/
 
 wandb
 gradio_cached_examples
+validation_images
