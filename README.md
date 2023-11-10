@@ -159,6 +159,26 @@ datasets.py requires a [meta_data.json](https://github.com/aihao2000/stable-diff
 
 Tip: You can use CLIP's image encoder to retrieve similar images on large datasets, or directly use existing or generated similar images.
 
+
+
+You may use and refer to:
+
+- [dataset/gen_charactters.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/dataset/gen_characters.py)
+
+  It will clear the background of the task and generate a characters dataset with the same structure in the upper-level directory.
+
+- [dataset/compute_clip_features.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/dataset/compute_clip_features.py)
+
+  It will calculate the clip feature of the current data set and save it for calculating similar images.
+
+- [dataset/compute_similar_pairs.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/dataset/compute_similar_pairs.py)
+
+  Calculate similar images based on clip fetures and save them to meta_data.json
+
+*Please just for reference, they use the [image_retriever](https://github.com/aihao2000/image-retriever) library, which is an unstable version, and please be careful that the script needs to be executed with the dataset as the root directory.*
+
+
+
 [datasets.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/dataset/dataset.py) will generate an object like this:
 
 ```python
