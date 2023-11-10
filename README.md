@@ -147,6 +147,17 @@ Input ```Extensions->Install from URL->URL for extension's git repository```: ``
 
 Then click ```Install```,```Installed->Apply and restart UI```
 
+## More Examples
+
+| prompt                                                       | blueprint                                                    | result                                                       |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/1_prompt.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/1_blueprint.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/1_result.png) |
+| ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/12_prompt.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/12_blueprint.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/12_result.png) |
+| ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/13_prompt.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/13_blueprint.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/13_result.png) |
+| ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/8_prompt.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/8_blueprint.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/8_result.png) |
+| ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/11_prompt.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/11_blueprint.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/11_result.png) |
+| ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/15_prompt.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/15_blueprint.png) | ![](https://github.com/aihao2000/stable-diffusion-reference-only/raw/main/README.assets/15_result.png) |
+
 ## Train
 
 Take the line art automatic coloring task as an example. If you want to perform other tasks, you can refer to and modify [train/train_sd_reference_only_automatic_coloring.py](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/train/train_sd_reference_only_automatic_coloring.py).
@@ -266,19 +277,3 @@ Next, the specific parameters you may use are as follows:
 - seed
 
 Finally, run the training script, just like [train/train_automatic_coloring_0.1.2_buaa.sh](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/train/train_automatic_coloring_0.1.2_buaa.sh).
-
-## More Examples
-
-| input                              | input                                 | output                             |
-| ---------------------------------- | ------------------------------------- | ---------------------------------- |
-| ![](./README.assets/1_prompt.png)  | ![](./README.assets/1_blueprint.png)  | ![](./README.assets/1_result.png)  |
-| ![](./README.assets/12_prompt.png) | ![](./README.assets/12_blueprint.png) | ![](./README.assets/12_result.png) |
-| ![](./README.assets/13_prompt.png) | ![](./README.assets/13_blueprint.png) | ![](./README.assets/13_result.png) |
-| ![](./README.assets/8_prompt.png)  | ![](./README.assets/8_blueprint.png)  | ![](./README.assets/8_result.png)  |
-| ![](./README.assets/11_prompt.png) | ![](./README.assets/11_blueprint.png) | ![](./README.assets/11_result.png) |
-| ![](./README.assets/15_prompt.png) | ![](./README.assets/15_blueprint.png) | ![](./README.assets/15_result.png) |
-
-
-
-
-
