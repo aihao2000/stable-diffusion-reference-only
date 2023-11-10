@@ -1,6 +1,6 @@
 import huggingface_hub
 import gradio as gr
-from stable_diffusion_reference_only.pipelines.stable_diffusion_reference_only_pipeline import (
+from stable_diffusion_reference_only.pipelines.pipeline_stable_diffusion_reference_only import (
     StableDiffusionReferenceOnlyPipeline,
 )
 from anime_segmentation import get_model as get_anime_segmentation_model

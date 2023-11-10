@@ -40,7 +40,7 @@ import cv2
 import sys
 
 sys.path.append("src")
-from stable_diffusion_reference_only.pipelines.stable_diffusion_reference_only_pipeline import (
+from stable_diffusion_reference_only.pipelines.pipeline_stable_diffusion_reference_only import (
     StableDiffusionReferenceOnlyPipeline,
 )
 from stable_diffusion_reference_only.models.unet_2d_dobule_condition import (
