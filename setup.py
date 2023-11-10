@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="stable_diffusion_reference_only",
-    version="0.1.0",
+    version="0.1.1",
     description="Zero-threshold fast secondary painting using stable diffusion reference only",
     long_description=open("README.md", "r", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
