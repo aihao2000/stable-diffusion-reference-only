@@ -50,8 +50,8 @@ It is recommended to create and use a torch virtual environment, such as conda.
   It is compatible with general torch environments. If you have a torch environment, you can try using it directly.
 
   ```shell
-  conda create -n stable_diffusion_reference_only 
-  conda activate stable_diffusion_reference_only python=3.10 
+  conda create -n stable_diffusion_reference_only python=3.10 
+  conda activate stable_diffusion_reference_only 
   ```
 
 ### By Package
