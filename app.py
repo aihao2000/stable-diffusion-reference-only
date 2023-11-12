@@ -85,6 +85,11 @@ def style_transfer(prompt, blueprint, num_inference_steps):
     blueprint = get_line_art(blueprint)
     blueprint = color_inversion(blueprint)
     return inference(prompt, blueprint, num_inference_steps)
+
+def resize(img, new_height, new_width):
+    img = Image.fromarray(img).resize((int(new_width), int(new_height)), Image.BILINEAR)
+    return np.array(img)
+
 with gr.Blocks() as demo:
     gr.Markdown(
         """
@@ -94,7 +99,21 @@ with gr.Blocks() as demo:
     )
     with gr.Row():
         with gr.Column():
-            prompt_input_compoent = gr.Image(shape=(512, 512), label="prompt")
+            prompt_input_compoent = gr.Image(label="prompt")
+            with gr.Row():
+                prompt_new_height = gr.Number(512, label="height", minimum=1)
+                prompt_new_width = gr.Number(512, label="width", minimum=1)
+                prompt_resize_button = gr.Button("prompt resize")
+                prompt_resize_button.click(
+                    resize,
+                    inputs=[
+                        prompt_input_compoent,
+                        prompt_new_height,
+                        prompt_new_width,
+                    ],
+                    outputs=prompt_input_compoent,
+                )
+
             prompt_character_segment_button = gr.Button(
                 "character segment",
             )
@@ -104,7 +123,22 @@ with gr.Blocks() as demo:
                 outputs=prompt_input_compoent,
             )
         with gr.Column():
-            blueprint_input_compoent = gr.Image(shape=(512, 512), label="blueprint")
+            blueprint_input_compoent = gr.Image(label="blueprint")
+
+            with gr.Row():
+                blueprint_new_height = gr.Number(512, label="height", minimum=1)
+                blueprint_new_width = gr.Number(512, label="width", minimum=1)
+                blueprint_resize_button = gr.Button("blueprint resize")
+                blueprint_resize_button.click(
+                    resize,
+                    inputs=[
+                        blueprint_input_compoent,
+                        blueprint_new_height,
+                        blueprint_new_width,
+                    ],
+                    outputs=blueprint_input_compoent,
+                )
+
             blueprint_character_segment_button = gr.Button("character segment")
             blueprint_character_segment_button.click(
                 character_segment,
@@ -128,7 +162,7 @@ with gr.Blocks() as demo:
                 outputs=blueprint_input_compoent,
             )
         with gr.Column():
-            result_output_component = gr.Image(shape=(512, 512), label="result")
+            result_output_component = gr.Image(label="result")
             num_inference_steps_input_component = gr.Number(
                 20, label="num inference steps", minimum=1, maximum=1000, step=1
             )
