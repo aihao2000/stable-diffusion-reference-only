@@ -277,3 +277,15 @@ Next, the specific parameters you may use are as follows:
 - seed
 
 Finally, run the training script, just like [train/train_automatic_coloring_0.1.2_buaa.sh](https://github.com/aihao2000/stable-diffusion-reference-only/blob/main/train/train_automatic_coloring_0.1.2_buaa.sh).
+
+## Future Work
+
+- [ ] Training at 768 resolution, and fine-tuning at multiple resolutions
+
+- [ ] Module separation, compatible with Stable Diffusion, Stable Diffusion XL
+
+- [ ] Multi-condition 3D Generation
+
+- [ ] ......
+
+*If you're interested in funding, computing resources, or code contributions, feel free to contact me.*
