@@ -22,6 +22,8 @@ A general model for secondary painting.[![arXiv](https://camo.githubusercontent.
 
 ![](./README.assets/3x9.png)
 
+[TOC]
+
 ## Online Demo
 
 Integrated into [Huggingface Spaces 🤗](https://huggingface.co/spaces) using [Gradio](https://github.com/gradio-app/gradio). Try it out  [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/AisingioroHao0/anime-fanwork)
@@ -32,7 +34,7 @@ Try it On [![**Stable Diffusion Reference Only Demo**](https://colab.research.go
 
 [Stable Diffusion Reference Only Automatic Coloring 0.1.2](https://huggingface.co/AisingioroHao0/stable-diffusion-reference-only-automatic-coloring-0.1.2) is released. Trained for 850,000 steps on anime images at 512 resolution.
 
-*If you are interested in better stable diffusion reference only models and have idle computing resources, feel free to contact me. Due to copyright issues with the dataset images, I'm not sure if I can make them public.*
+*If you are interested in better stable diffusion reference only models such as in future work and have idle computing resources, feel free to contact me. Due to copyright issues with the dataset images, I'm not sure if I can make them public.*
 
 ## Instructions for Use
 
@@ -289,3 +291,4 @@ Finally, run the training script, just like [train/train_automatic_coloring_0.1.
 - [ ] ......
 
 *If you're interested in funding, computing resources, or code contributions, feel free to contact me.*
+
