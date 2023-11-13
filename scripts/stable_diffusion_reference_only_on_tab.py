@@ -204,10 +204,16 @@ def on_ui_tabs():
                 examples=[
                     [
                         os.path.join(
-                            os.path.dirname(__file__), "README.assets", "3x9_prompt.png"
+                            scripts.basedir(),
+                            "extensions",
+                            "stable-diffusion-reference-only",
+                            "README.assets",
+                            "3x9_prompt.png",
                         ),
                         os.path.join(
-                            os.path.dirname(__file__),
+                            scripts.basedir(),
+                            "extensions",
+                            "stable-diffusion-reference-only",
                             "README.assets",
                             "3x9_blueprint.png",
                         ),
