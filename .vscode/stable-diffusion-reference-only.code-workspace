@@ -4,7 +4,7 @@
 			"path": ".."
 		},
 		{
-			"path": "../../DeepLearningContent"
+			"path": "../../deeplearning-content"
 		},
 		{
 			"path": "../../diffusers"
@@ -20,6 +20,9 @@
 		},
 		{
 			"path": "../../anime-fanwork"
+		},
+		{
+			"path": "../../controlnet_aux"
 		}
 	],
 	"settings": {
