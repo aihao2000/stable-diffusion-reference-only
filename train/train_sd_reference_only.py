@@ -1,8 +1,10 @@
+#!/usr/bin/env python
+# coding=utf-8
+
 import argparse
 import logging
 import math
 import os
-import random
 import shutil
 from pathlib import Path
 import itertools
@@ -23,7 +25,7 @@ from packaging import version
 from PIL import Image
 from torchvision import transforms
 from tqdm.auto import tqdm
-from transformers import CLIPImageProcessor, CLIPVisionModel, PretrainedConfig
+from transformers import CLIPImageProcessor, CLIPVisionModel
 from transformers.utils import ContextManagers
 import diffusers
 from diffusers import (
@@ -32,9 +34,9 @@ from diffusers import (
     UniPCMultistepScheduler,
 )
 from diffusers.optimization import get_scheduler
-from diffusers.utils import check_min_version, is_wandb_available
+from diffusers.utils import is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
-
+import cv2
 import sys
 
 sys.path.append("src")
@@ -119,9 +121,16 @@ def log_validation(
     image_logs = []
 
     for prompt_path, blueprint_path in zip(prompt_paths, blueprint_paths):
-        blueprint = Image.open(blueprint_path).convert("RGB").resize((1024, 1024))
-        blueprint = Image.eval(blueprint, lambda x: 255 - x)
-        prompt = Image.open(prompt_path).convert("RGB").resize((1024, 1024))
+        blueprint = (
+            Image.open(blueprint_path)
+            .convert("RGB")
+            .resize((args.resolution, args.resolution))
+        )
+        prompt = (
+            Image.open(prompt_path)
+            .convert("RGB")
+            .resize((args.resolution, args.resolution))
+        )
         images = []
 
         for _ in range(args.num_validation_images):
@@ -131,7 +140,6 @@ def log_validation(
                     blueprint=blueprint,
                     num_inference_steps=20,
                     generator=generator,
-                    train_image_encoder=args.train_image_encoder,
                 ).images[0]
 
             images.append(image)
@@ -146,13 +154,14 @@ def log_validation(
 
     for tracker in accelerator.trackers:
         if tracker.name == "tensorboard":
-            for log in image_logs:
+            for i, log in enumerate(image_logs):
                 images = log["images"]
                 prompt = log["prompt"]
                 blueprint = log["blueprint"]
 
                 formatted_images = []
 
+                formatted_images.append(np.asarray(prompt))
                 formatted_images.append(np.asarray(blueprint))
 
                 for image in images:
@@ -161,7 +170,7 @@ def log_validation(
                 formatted_images = np.stack(formatted_images)
 
                 tracker.writer.add_images(
-                    prompt_path, formatted_images, step, dataformats="NHWC"
+                    str(i), formatted_images, step, dataformats="NHWC"
                 )
         elif tracker.name == "wandb":
             formatted_images = []
@@ -181,7 +190,16 @@ def log_validation(
         else:
             logger.warn(f"image logging not implemented for {tracker.name}")
 
-        return image_logs
+    for i, log in enumerate(image_logs):
+        for j, image in enumerate(log["images"]):
+            image.save(
+                os.path.join(args.output_dir, "validations", f"{step}_{i}_{j}.png")
+            )
+
+    del pipeline
+    torch.cuda.empty_cache()
+
+    return image_logs
 
 
 def save_model_card(repo_id: str, image_logs=None, base_model=str, repo_folder=None):
@@ -228,11 +246,21 @@ def parse_args(input_args=None):
         description="Simple example of a UNet2DDobuleConditionModel training script."
     )
     parser.add_argument(
+        "--ddp_find_unused_parameters",
+        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
         "--pretrained_model_name_or_path",
         type=str,
         default=None,
         required=True,
         help="Path to pretrained model or model identifier from huggingface.co/models.",
+    )
+    parser.add_argument(
+        "--pretrained_controlnet_aux_model_name_or_path",
+        type=str,
+        default=None,
     )
     parser.add_argument(
         "--revision",
@@ -377,6 +405,7 @@ def parse_args(input_args=None):
             "Number of subprocesses to use for data loading. 0 means that the data will be loaded in the main process."
         ),
     )
+
     parser.add_argument("--load_dataset_num_proc", type=int, default=None)
     parser.add_argument(
         "--adam_beta1",
@@ -459,6 +488,7 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--enable_xformers_memory_efficient_attention",
         action="store_true",
+        default=False,
         help="Whether or not to use xformers.",
     )
     parser.add_argument(
@@ -502,23 +532,36 @@ def parse_args(input_args=None):
         action="store_true",
     )
     parser.add_argument(
-        "--image_column",
-        type=str,
-        default="image",
-        help="The column of the dataset containing the target image.",
+        "--dataset_map",
+        default=False,
+        action="store_true",
     )
     parser.add_argument(
-        "--blueprint_column",
-        type=str,
-        default="blueprint",
-        help="The column of the dataset containing the blueprint image.",
+        "--dataset_map_batch_size",
+        default=1000,
+        type=int,
+    )
+    parser.add_argument(
+        "--dataset_map_writer_batch_size",
+        type=int,
+        default=10000,
     )
     parser.add_argument(
         "--prompt_column",
         type=str,
-        default="prompt",
-        help="The column of the dataset containing a caption or a list of captions.",
+        default="image1",
     )
+    parser.add_argument(
+        "--image_column",
+        type=str,
+        default="image2",
+    )
+    parser.add_argument(
+        "--blueprint_column",
+        type=str,
+        default='blueprint'
+    )
+
     parser.add_argument(
         "--max_train_samples",
         type=int,
@@ -647,36 +690,20 @@ def make_train_dataset(args, clip_image_processor, accelerator):
     # We need to tokenize inputs and targets.
     column_names = dataset["train"].column_names
 
-    # 6. Get the column names for input/target.
-    if args.image_column is None:
-        image_column = column_names[0]
-        logger.info(f"image column defaulting to {image_column}")
-    else:
-        image_column = args.image_column
-        if image_column not in column_names:
-            raise ValueError(
-                f"`--image_column` value '{args.image_column}' not found in dataset columns. Dataset columns are: {', '.join(column_names)}"
-            )
+    if args.image_column not in column_names:
+        raise ValueError(
+            f"`--image_column` value '{args.image_column}' not found in dataset columns. Dataset columns are: {', '.join(column_names)}"
+        )
 
-    if args.prompt_column is None:
-        prompt_column = column_names[1]
-        logger.info(f"caption column defaulting to {prompt_column}")
-    else:
-        prompt_column = args.prompt_column
-        if prompt_column not in column_names:
-            raise ValueError(
-                f"`--prompt_column` value '{args.prompt_column}' not found in dataset columns. Dataset columns are: {', '.join(column_names)}"
-            )
-
-    if args.blueprint_column is None:
-        blueprint_column = column_names[2]
-        logger.info(f"conditioning image column defaulting to {blueprint_column}")
-    else:
-        blueprint_column = args.blueprint_column
-        if blueprint_column not in column_names:
-            raise ValueError(
-                f"`--blueprint_column` value '{args.blueprint_column}' not found in dataset columns. Dataset columns are: {', '.join(column_names)}"
-            )
+    if args.prompt_column not in column_names:
+        raise ValueError(
+            f"`--prompt_column` value '{args.prompt_column}' not found in dataset columns. Dataset columns are: {', '.join(column_names)}"
+        )
+        
+    if args.blueprint_column not in column_names:
+        raise ValueError(
+            f"`--prompt_column` value '{args.prompt_column}' not found in dataset columns. Dataset columns are: {', '.join(column_names)}"
+        )
 
     image_transforms = transforms.Compose(
         [
@@ -700,16 +727,14 @@ def make_train_dataset(args, clip_image_processor, accelerator):
     )
 
     def preprocess_train(examples):
-        images = [image.convert("RGB") for image in examples[image_column]]
+        images = [image.convert("RGB") for image in examples[args.image_column]]
         images = [image_transforms(image) for image in images]
 
-        blueprints = [
-            blueprint.convert("RGB") for blueprint in examples[blueprint_column]
-        ]
+        blueprints = [blueprint.convert("RGB") for blueprint in examples[args.blueprint_column]]
         blueprints = [blueprint_transforms(blueprint) for blueprint in blueprints]
         prompts = [
             clip_image_processor(prompt, return_tensors="pt").pixel_values[0]
-            for prompt in examples[prompt_column]
+            for prompt in examples[args.prompt_column]
         ]
 
         return {
@@ -733,48 +758,100 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             )
             train_dataset = train_dataset.shuffle(seed=args.seed)
         else:
-            train_dataset = dataset["train"].with_transform(preprocess_train)
+            if args.dataset_map:
+                train_dataset = dataset["train"].map(
+                    preprocess_train,
+                    batch_size=args.dataset_map_batch_size,
+                    batched=True,
+                    num_proc=args.load_dataset_num_proc,
+                    writer_batch_size=args.dataset_map_writer_batch_size,
+                )
+            else:
+                train_dataset = dataset["train"].with_transform(preprocess_train)
 
-    return train_dataset
+    def collate_fn(examples):
+        pixel_values = torch.stack(
+            [
+                torch.tensor(example["pixel_values"])
+                if isinstance(example["pixel_values"], list)
+                else example["pixel_values"]
+                for example in examples
+            ]
+        )
+        pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
 
+        blueprint_pixel_values = torch.stack(
+            [
+                torch.tensor(example["blueprint_pixel_values"])
+                if isinstance(example["blueprint_pixel_values"], list)
+                else example["blueprint_pixel_values"]
+                for example in examples
+            ]
+        )
+        blueprint_pixel_values = blueprint_pixel_values.to(
+            memory_format=torch.contiguous_format
+        ).float()
 
-def collate_fn(examples):
-    pixel_values = torch.stack([example["pixel_values"] for example in examples])
-    pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
+        prompt_pixel_values = torch.stack(
+            [
+                torch.tensor(example["prompt_pixel_values"])
+                if isinstance(example["prompt_pixel_values"], list)
+                else example["prompt_pixel_values"]
+                for example in examples
+            ]
+        )
+        prompt_pixel_values = prompt_pixel_values.to(
+            memory_format=torch.contiguous_format
+        ).float()
 
-    blueprint_pixel_values = torch.stack(
-        [example["blueprint_pixel_values"] for example in examples]
-    )
-    blueprint_pixel_values = blueprint_pixel_values.to(
-        memory_format=torch.contiguous_format
-    ).float()
+        return {
+            "pixel_values": pixel_values,
+            "blueprint_pixel_values": blueprint_pixel_values,
+            "prompt_pixel_values": prompt_pixel_values,
+        }
 
-    prompt_pixel_values = torch.stack(
-        [example["prompt_pixel_values"] for example in examples]
-    )
+    if args.load_dataset_streaming:
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset,
+            collate_fn=collate_fn,
+            batch_size=args.train_batch_size,
+            num_workers=args.dataloader_num_workers,
+        )
+    else:
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset,
+            shuffle=True,
+            collate_fn=collate_fn,
+            batch_size=args.train_batch_size,
+            num_workers=args.dataloader_num_workers,
+        )
 
-    return {
-        "pixel_values": pixel_values,
-        "blueprint_pixel_values": blueprint_pixel_values,
-        "prompt_pixel_values": prompt_pixel_values,
-    }
+    return train_dataset, train_dataloader
 
 
 def main(args):
-    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
     logging_dir = Path(args.output_dir, args.logging_dir)
 
     accelerator_project_config = ProjectConfiguration(
         project_dir=args.output_dir, logging_dir=logging_dir
     )
 
-    accelerator = Accelerator(
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        mixed_precision=args.mixed_precision,
-        log_with=args.report_to,
-        project_config=accelerator_project_config,
-        kwargs_handlers=[ddp_kwargs],
-    )
+    if args.ddp_find_unused_parameters:
+        ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+        accelerator = Accelerator(
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
+            mixed_precision=args.mixed_precision,
+            log_with=args.report_to,
+            project_config=accelerator_project_config,
+            kwargs_handlers=[ddp_kwargs],
+        )
+    else:
+        accelerator = Accelerator(
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
+            mixed_precision=args.mixed_precision,
+            log_with=args.report_to,
+            project_config=accelerator_project_config,
+        )
 
     # Make one log on every process with the configuration for debugging.
     logging.basicConfig(
@@ -798,6 +875,7 @@ def main(args):
     if accelerator.is_main_process:
         if args.output_dir is not None:
             os.makedirs(args.output_dir, exist_ok=True)
+            os.makedirs(os.path.join(args.output_dir, "validations"),exist_ok=True)
 
         if args.push_to_hub:
             repo_id = create_repo(
@@ -806,52 +884,23 @@ def main(args):
                 token=args.hub_token,
             ).repo_id
 
-    def deepspeed_zero_init_disabled_context_manager():
-        """
-        returns either a context list that includes one that will disable zero.Init or an empty context list
-        """
-        deepspeed_plugin = (
-            AcceleratorState().deepspeed_plugin
-            if accelerate.state.is_initialized()
-            else None
-        )
-        if deepspeed_plugin is None:
-            return []
-
-        return [deepspeed_plugin.zero3_init_context_manager(enable=False)]
-
-    # Currently Accelerate doesn't know how to handle multiple models under Deepspeed ZeRO stage 3.
-    # For this to work properly all models must be run through `accelerate.prepare`. But accelerate
-    # will try to assign the same optimizer with the same weights to all models during
-    # `deepspeed.initialize`, which of course doesn't work.
-    #
-    # For now the following workaround will partially support Deepspeed ZeRO-3, by excluding the 2
-    # frozen models from being partitioned during `zero.Init` which gets called during
-    # `from_pretrained` So CLIPTextModel and AutoencoderKL will not enjoy the parameter sharding
-    # across multiple gpus and only UNet2DConditionModel will get ZeRO sharded.
-    with ContextManagers(deepspeed_zero_init_disabled_context_manager()):
-        if not args.train_image_encoder:
-            image_encoder = CLIPVisionModel.from_pretrained(
-                args.pretrained_model_name_or_path,
-                subfolder="image_encoder",
-            )
-        vae = AutoencoderKL.from_pretrained(
-            args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision
-        )
     clip_image_processor = CLIPImageProcessor.from_pretrained(
         args.pretrained_model_name_or_path,
         subfolder="clip_image_processor",
     )
-    if args.train_image_encoder:
-        image_encoder = CLIPVisionModel.from_pretrained(
-            args.pretrained_model_name_or_path,
-            subfolder="image_encoder",
-        )
+    image_encoder = CLIPVisionModel.from_pretrained(
+        args.pretrained_model_name_or_path,
+        subfolder="image_encoder",
+    )
+    vae = AutoencoderKL.from_pretrained(
+        args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision
+    )
+
     # Load scheduler and models
     noise_scheduler = DDPMScheduler.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="scheduler"
     )
-    unet = UNet2DDobuleConditionModel.from_pretrained(
+    unet: UNet2DDobuleConditionModel = UNet2DDobuleConditionModel.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision
     )
 
@@ -896,6 +945,7 @@ def main(args):
     unet.requires_grad_(True)
     if args.train_image_encoder:
         image_encoder.requires_grad_(True)
+        image_encoder.vision_model.post_layernorm.requires_grad_(False)
     else:
         image_encoder.requires_grad_(False)
 
@@ -916,6 +966,8 @@ def main(args):
 
     if args.gradient_checkpointing:
         unet.enable_gradient_checkpointing()
+        if args.train_image_encoder:
+            image_encoder.gradient_checkpointing_enable()
 
     # Enable TF32 for faster training on Ampere GPUs,
     # cf https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices
@@ -953,27 +1005,9 @@ def main(args):
         eps=args.adam_epsilon,
     )
 
-    train_dataset = make_train_dataset(args, clip_image_processor, accelerator)
-
-    if args.load_dataset_streaming:
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset,
-            collate_fn=collate_fn,
-            batch_size=args.train_batch_size,
-            num_workers=args.dataloader_num_workers,
-        )
-        dataset_len = 0
-        for _ in train_dataloader:
-            dataset_len += 1
-    else:
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset,
-            shuffle=True,
-            collate_fn=collate_fn,
-            batch_size=args.train_batch_size,
-            num_workers=args.dataloader_num_workers,
-        )
-        dataset_len = len(train_dataloader)
+    train_dataset, train_dataloader = make_train_dataset(
+        args, clip_image_processor, accelerator
+    )
 
     # Scheduler and math around the number of training steps.
     overrode_max_train_steps = False
@@ -1050,7 +1084,6 @@ def main(args):
 
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(train_dataset)}")
-    logger.info(f"  Num batches each epoch = {len(train_dataloader)}")
     logger.info(f"  Num Epochs = {args.num_train_epochs}")
     logger.info(f"  Instantaneous batch size per device = {args.train_batch_size}")
     logger.info(
@@ -1088,19 +1121,23 @@ def main(args):
             resume_step = resume_global_step % (
                 num_update_steps_per_epoch * args.gradient_accumulation_steps
             )
+            resume_progress_bar = tqdm(
+                range(0, resume_step), disable=not accelerator.is_local_main_process
+            )
 
+    # Only show the progress bar once on each machine.
     progress_bar = tqdm(
-        range(0, args.max_train_steps),
-        initial=global_step,
-        desc="Steps",
-        # Only show the progress bar once on each machine.
+        range(global_step, args.max_train_steps),
         disable=not accelerator.is_local_main_process,
     )
+    progress_bar.set_description("Steps")
+
     image_logs = None
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
         if args.train_image_encoder:
             image_encoder.train()
+        train_loss = 0.0
         for step, batch in enumerate(train_dataloader):
             if (
                 args.resume_from_checkpoint
@@ -1108,9 +1145,9 @@ def main(args):
                 and step < resume_step
             ):
                 if step % args.gradient_accumulation_steps == 0:
-                    progress_bar.update(1)
+                    resume_progress_bar.update(1)
                 continue
-            with accelerator.accumulate(unet):
+            with accelerator.accumulate(unet), accelerator.accumulate(image_encoder):
                 # Convert images to latent space
                 latents = vae.encode(
                     batch["pixel_values"].to(dtype=weight_dtype)
@@ -1133,15 +1170,10 @@ def main(args):
                 # (this is the forward diffusion process)
                 noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
-                # Get the text embedding for conditioning
-                if args.train_image_encoder:
-                    encoder_hidden_states = image_encoder(
-                        batch["prompt_pixel_values"], output_hidden_states=True
-                    ).hidden_states[-2]
-                else:
-                    encoder_hidden_states = image_encoder(
-                        batch["prompt_pixel_values"], output_hidden_states=False
-                    ).last_hidden_state
+                encoder_hidden_states = image_encoder(
+                    batch["prompt_pixel_values"], output_hidden_states=False
+                ).last_hidden_state
+
                 blueprint = batch["blueprint_pixel_values"].to(dtype=weight_dtype)
 
                 # Predict the noise residual
@@ -1162,6 +1194,11 @@ def main(args):
                         f"Unknown prediction type {noise_scheduler.config.prediction_type}"
                     )
                 loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+
+                # Gather the losses across all processes for logging (if we use distributed training).
+                avg_loss = accelerator.gather(loss.repeat(args.train_batch_size)).mean()
+                train_loss += avg_loss.item() / args.gradient_accumulation_steps
+
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
                     params_to_clip = (
@@ -1178,6 +1215,8 @@ def main(args):
             if accelerator.sync_gradients:
                 progress_bar.update(1)
                 global_step += 1
+                accelerator.log({"train_loss": train_loss}, step=global_step)
+                train_loss = 0.0
 
                 if accelerator.is_main_process:
                     if global_step % args.checkpointing_steps == 0:
@@ -1234,7 +1273,6 @@ def main(args):
 
             logs = {"loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0]}
             progress_bar.set_postfix(**logs)
-            accelerator.log(logs, step=global_step)
 
             if global_step >= args.max_train_steps:
                 break
