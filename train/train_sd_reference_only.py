@@ -36,7 +36,7 @@ from diffusers import (
 from diffusers.optimization import get_scheduler
 from diffusers.utils import is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
-import cv2
+import random
 import sys
 
 sys.path.append("src")
@@ -53,16 +53,6 @@ if is_wandb_available():
 
 logger = get_logger(__name__)
 
-
-def image_grid(imgs, rows, cols):
-    assert len(imgs) == rows * cols
-
-    w, h = imgs[0].size
-    grid = Image.new("RGB", size=(cols * w, rows * h))
-
-    for i, img in enumerate(imgs):
-        grid.paste(img, box=(i % cols * w, i // cols * h))
-    return grid
 
 
 def log_validation(
@@ -202,45 +192,6 @@ def log_validation(
     return image_logs
 
 
-def save_model_card(repo_id: str, image_logs=None, base_model=str, repo_folder=None):
-    img_str = ""
-    if image_logs is not None:
-        img_str = "You can find some example images below.\n"
-        for i, log in enumerate(image_logs):
-            images = log["images"]
-            validation_prompt = log["validation_prompt"]
-            validation_blueprint = log["validation_blueprint"]
-            validation_blueprint.save(os.path.join(repo_folder, "blueprint.png"))
-            img_str += f"prompt: {validation_prompt}\n"
-            images = [validation_blueprint] + images
-            image_grid(images, 1, len(images)).save(
-                os.path.join(repo_folder, f"images_{i}.png")
-            )
-            img_str += f"![images_{i})](./images_{i}.png)\n"
-
-    yaml = f"""
----
-license: creativeml-openrail-m
-base_model: {base_model}
-tags:
-- stable-diffusion
-- stable-diffusion-diffusers
-- text-to-image
-- diffusers
-- unet
-inference: true
----
-    """
-    model_card = f"""
-# unet-{repo_id}
-
-These are unet weights trained on {base_model} with new type of conditioning.
-{img_str}
-"""
-    with open(os.path.join(repo_folder, "README.md"), "w") as f:
-        f.write(yaml + model_card)
-
-
 def parse_args(input_args=None):
     parser = argparse.ArgumentParser(
         description="Simple example of a UNet2DDobuleConditionModel training script."
@@ -256,11 +207,6 @@ def parse_args(input_args=None):
         default=None,
         required=True,
         help="Path to pretrained model or model identifier from huggingface.co/models.",
-    )
-    parser.add_argument(
-        "--pretrained_controlnet_aux_model_name_or_path",
-        type=str,
-        default=None,
     )
     parser.add_argument(
         "--revision",
@@ -549,12 +495,12 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--prompt_column",
         type=str,
-        default="image1",
+        default="reference_image",
     )
     parser.add_argument(
         "--image_column",
         type=str,
-        default="image2",
+        default="target_image",
     )
     parser.add_argument(
         "--blueprint_column",
@@ -702,7 +648,7 @@ def make_train_dataset(args, clip_image_processor, accelerator):
         
     if args.blueprint_column not in column_names:
         raise ValueError(
-            f"`--prompt_column` value '{args.prompt_column}' not found in dataset columns. Dataset columns are: {', '.join(column_names)}"
+            f"`--blueprint_column` value '{args.blueprint_column}' not found in dataset columns. Dataset columns are: {', '.join(column_names)}"
         )
 
     image_transforms = transforms.Compose(
@@ -725,16 +671,30 @@ def make_train_dataset(args, clip_image_processor, accelerator):
             transforms.ToTensor(),
         ]
     )
+    prompt_transforms = transforms.Compose(
+        transforms.RandomHorizontalFlip()
+    )
+    
 
     def preprocess_train(examples):
         images = [image.convert("RGB") for image in examples[args.image_column]]
-        images = [image_transforms(image) for image in images]
-
         blueprints = [blueprint.convert("RGB") for blueprint in examples[args.blueprint_column]]
+        
+        for i in range(len(images)):
+            if random.randint(0,1)==1:
+                images[i]=images[i].transpose(Image.FLIP_LEFT_RIGHT)
+                blueprints[i]=blueprints[i].tranpose(Image.FLIP_LEFT_RIGHT)
+                
+        images = [image_transforms(image) for image in images]
         blueprints = [blueprint_transforms(blueprint) for blueprint in blueprints]
+        
+        prompts=[
+            prompt_transforms(prompt)
+            for prompt in examples[args.prompt_column]
+        ]
         prompts = [
             clip_image_processor(prompt, return_tensors="pt").pixel_values[0]
-            for prompt in examples[args.prompt_column]
+            for prompt in prompts
         ]
 
         return {
