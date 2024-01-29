@@ -505,7 +505,7 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--blueprint_column",
         type=str,
-        default='blueprint'
+        default='blueprint_image'
     )
 
     parser.add_argument(
@@ -654,9 +654,8 @@ def make_train_dataset(args, clip_image_processor, accelerator):
     image_transforms = transforms.Compose(
         [
             transforms.Resize(
-                args.resolution, interpolation=transforms.InterpolationMode.BILINEAR
+                (args.resolution,args.resolution), interpolation=transforms.InterpolationMode.BILINEAR
             ),
-            transforms.CenterCrop(args.resolution),
             transforms.ToTensor(),
             transforms.Normalize([0.5], [0.5]),
         ]
@@ -665,14 +664,15 @@ def make_train_dataset(args, clip_image_processor, accelerator):
     blueprint_transforms = transforms.Compose(
         [
             transforms.Resize(
-                args.resolution, interpolation=transforms.InterpolationMode.BILINEAR
+                (args.resolution,args.resolution), interpolation=transforms.InterpolationMode.BILINEAR
             ),
-            transforms.CenterCrop(args.resolution),
             transforms.ToTensor(),
         ]
     )
     prompt_transforms = transforms.Compose(
-        transforms.RandomHorizontalFlip()
+        [
+            transforms.RandomHorizontalFlip()
+        ]
     )
     
 
@@ -681,9 +681,9 @@ def make_train_dataset(args, clip_image_processor, accelerator):
         blueprints = [blueprint.convert("RGB") for blueprint in examples[args.blueprint_column]]
         
         for i in range(len(images)):
-            if random.randint(0,1)==1:
-                images[i]=images[i].transpose(Image.FLIP_LEFT_RIGHT)
-                blueprints[i]=blueprints[i].tranpose(Image.FLIP_LEFT_RIGHT)
+            if random.randint(0,1) == 1:
+                images[i] = images[i].transpose(Image.FLIP_LEFT_RIGHT)
+                blueprints[i] = blueprints[i].transpose(Image.FLIP_LEFT_RIGHT)
                 
         images = [image_transforms(image) for image in images]
         blueprints = [blueprint_transforms(blueprint) for blueprint in blueprints]
