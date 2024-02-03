@@ -18,21 +18,30 @@ from modules import scripts
 def on_ui_tabs():
     print(f"Is CUDA available: {torch.cuda.is_available()}")
 
-    if torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
-
     automatic_coloring_pipeline = StableDiffusionReferenceOnlyPipeline.from_pretrained(
         "AisingioroHao0/stable-diffusion-reference-only-automatic-coloring-0.1.2"
-    ).to(device)
+    )
     automatic_coloring_pipeline.scheduler = UniPCMultistepScheduler.from_config(
         automatic_coloring_pipeline.scheduler.config
     )
 
     segment_model = get_anime_segmentation_model(
         model_path=huggingface_hub.hf_hub_download("skytnt/anime-seg", "isnetis.ckpt")
-    ).to(device)
+    )
+
+    def swich_device():
+        if (
+            automatic_coloring_pipeline.device == torch.device("cpu")
+            and torch.cuda.is_available()
+        ):
+            segment_model.to("cuda")
+            automatic_coloring_pipeline.to("cuda")
+            return "cuda"
+        else:
+            segment_model.to("cpu")
+            automatic_coloring_pipeline.to("cpu")
+            torch.cuda.empty_cache()
+            return "cpu"
 
     def character_segment(img):
         if img is None:
@@ -100,6 +109,12 @@ def on_ui_tabs():
         demo for [https://github.com/aihao2000/stable-diffusion-reference-only](https://github.com/aihao2000/stable-diffusion-reference-only)
         """
         )
+        with gr.Row():
+            device_text = gr.Text("cpu", label="device", interactive=False)
+            switch_device_button = gr.Button("switch device")
+
+            switch_device_button.click(swich_device, outputs=[device_text])
+
         with gr.Row():
             with gr.Column():
                 prompt_input_compoent = gr.Image(label="prompt")
