@@ -1,0 +1,48 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../deeplearning-content"
+		},
+		{
+			"path": "../../diffusers"
+		},
+		{
+			"path": "../../image-retriever"
+		},
+		{
+			"path": "../../anime-segmentation"
+		},
+		{
+			"path": "../../../.cache/huggingface"
+		},
+		{
+			"path": "../../anime-fanwork"
+		},
+		{
+			"path": "../../controlnet_aux"
+		}
+	],
+	"settings": {
+		"[python]": {
+			"editor.defaultFormatter": "ms-python.black-formatter"
+		},
+		"explorer.excludeGitIgnore": false,
+		"python.analysis.autoSearchPaths": true,
+		"python.analysis.exclude": [
+			"**/datasets",
+			"**/models",
+			"**/data"
+		],
+		"python.analysis.include": [
+			"/home/aihao/workspace/image-retriever",
+			"/home/aihao/workspace/stable-diffusion-reference-only"
+		],
+		"python.autoComplete.extraPaths": [
+			"/home/aihao/workspace/image-retriever",
+			"/home/aihao/workspace/stable-diffusion-reference-only"
+		]
+	}
+}
