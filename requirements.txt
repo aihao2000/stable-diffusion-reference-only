@@ -1,6 +1,6 @@
 torch==2.5.1
 torchvision==0.20.1
-gradio==4.11.0
+gradio==3.48.0
 diffusers==0.21.0
 huggingface_hub==0.23.0
 transformers==4.33.1
@@ -17,3 +17,4 @@ deepspeed
 kornia
 pytorch-lightning
 scipy
+git+https://github.com/aihao2000/stable-diffusion-reference-only.git
